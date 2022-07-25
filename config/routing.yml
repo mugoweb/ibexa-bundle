@@ -1,0 +1,9 @@
+mugoweb_ibexa_query:
+  path: /query
+  defaults:
+    _controller: 'MugoWeb\IbexaBundle\Controller\QueryController::query'
+
+mugoweb_ibexa_find_location:
+  path: /location/{locationId}
+  defaults:
+    _controller: 'MugoWeb\IbexaBundle\Controller\QueryController::location'

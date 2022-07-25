@@ -1,0 +1,22 @@
+{
+    "name": "mugoweb/ibexa-bundle",
+    "description": "Useful tools for ibexa",
+    "type": "symfony-bundle",
+    "license": "GPL-2.0-only",
+    "authors": [
+        {
+            "name": "Mugo Web",
+            "email": "hi@mugo.ca"
+        }
+    ],
+    "require": {
+        "php": "^7.3"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "MugoWeb\\IbexaBundle\\": "src/"
+        }
+    }
+}

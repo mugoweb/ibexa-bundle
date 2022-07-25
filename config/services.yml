@@ -1,0 +1,4 @@
+services:
+  MugoWeb\IbexaBundle\Controller\QueryController:
+    autowire: true
+    autoconfigure: true
