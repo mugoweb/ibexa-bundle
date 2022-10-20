@@ -1,6 +1,6 @@
 Installation
 =
-```composer require mugoweb/mugo_ibexa:dev-master```
+```composer require mugoweb/mugoweb/ibexa-bundle:dev-master```
 
 Afterward, you need to enable the bundle in _config/bundles.php_:
 
