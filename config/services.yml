@@ -1,4 +1,7 @@
 services:
+  # Commands
+  MugoWeb\IbexaBundle\Command\PurgeTrashCommand: ~
+
   MugoWeb\IbexaBundle\Controller\QueryController:
     autowire: true
     autoconfigure: true

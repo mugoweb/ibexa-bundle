@@ -27,3 +27,12 @@ It allows you to fetch _Locations_ for a given LocationQuery string.
 Use this path to access it:
 
 /query
+
+Commands
+-
+
+```
+php bin/console ibexa:trash:purge <limit>
+```
+
+Command to purge items from the trash
