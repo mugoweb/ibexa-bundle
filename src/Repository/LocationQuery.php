@@ -2,7 +2,6 @@
 
 namespace MugoWeb\IbexaBundle\Repository;
 
-use PHPUnit\Util\Exception;
 use eZ\Publish\API\Repository\Values\Content\Query;
 use eZ\Publish\API\Repository\Values\Content\LocationQuery as eZLocationQuery;
 
@@ -14,6 +13,9 @@ use eZ\Publish\API\Repository\Values\Content\LocationQuery as eZLocationQuery;
  *      Example: Subtree:/1/2/
  * - ParentLocationId
  * - ContentTypeIdentifier
+ * - Visibility
+ *      Example for visible content: Visibility:visible
+ *      Example for hidden content: Visibility:hidden
  * - Field.<identifier>
  *
  * Sort Fields - eZ\Publish\API\Repository\Values\Content\Query\SortClause\*
@@ -36,18 +38,22 @@ class LocationQuery extends eZLocationQuery
     static public function build( string $queryString, string $sortString = '', int $limit = 0 ) : eZLocationQuery
     {
         $locationQuery = new self();
+		$queryString = trim( $queryString );
 
-        $locationQuery->query = self::parseQueryString( $queryString );
+		if( $queryString )
+		{
+			$locationQuery->query = self::parseQueryString( $queryString );
 
-        if( $sortString )
-        {
-            self::parseSorting( $locationQuery, $sortString );
-        }
+			if( $sortString )
+			{
+				self::parseSorting( $locationQuery, $sortString );
+			}
 
-        if( $limit )
-        {
-            $locationQuery->limit = $limit;
-        }
+			if( $limit )
+			{
+				$locationQuery->limit = $limit;
+			}
+		}
 
         return $locationQuery;
     }
@@ -62,7 +68,7 @@ class LocationQuery extends eZLocationQuery
         preg_match( '/\((?:[^)(]+|(?R))*+\)/', $queryString, $matches );
 
         if( !empty( $matches ) )
-    {
+	    {
             foreach( $matches as $index => $match )
             {
                 $subQueryString = trim( substr( $match, 1, -1 ) );
@@ -73,24 +79,28 @@ class LocationQuery extends eZLocationQuery
             }
         }
 
-        // Matching strings like "ContentTypeIdentifier:product_category"
+        // Matching all word of the query sting.
+		// For example:
+		// - "ContentTypeIdentifier:product_category"
+		// - "and"
         preg_match_all( '/(.+?)(?:$|\s+)/', $queryString, $matches );
         $words = $matches[1];
-        $conditionGroups = [];
 
         $conditions = [];
+		// Only supporting single type of operator
         $logicalOperator = '';
         foreach( $words as $word )
         {
+			//TODO: only matching when outside of defined strings
             if( strpos( $word, ':' ) )
             {
                 $conditions[] = self::parseCondition( $word );
             }
-            elseif( $word == 'and' )
+            elseif( strtoupper( $word ) == 'AND' )
             {
                 $logicalOperator = 'LogicalAnd';
             }
-            elseif( $word == 'or' )
+            elseif( strtoupper( $word ) == 'OR' )
             {
                 $logicalOperator = 'LogicalOr';
             }
@@ -100,9 +110,14 @@ class LocationQuery extends eZLocationQuery
         {
             return self::linkConditions( $conditions, $logicalOperator );
         }
+		// Single condition without logical operator
+		elseif( !$logicalOperator && count( $conditions ) == 1 )
+		{
+			return $conditions;
+		}
         else
         {
-            throw new Exception( 'No logical operator found' );
+            throw new \Exception( 'No logical operator found' );
         }
     }
 
@@ -150,6 +165,7 @@ class LocationQuery extends eZLocationQuery
      */
     static protected function getCriterion( string $fieldName, $matchString )
     {
+		// $fieldName references a content type field
         if( strpos( $fieldName, '.' ) )
         {
             $parts = explode( '.', $fieldName );
@@ -166,9 +182,31 @@ class LocationQuery extends eZLocationQuery
         }
         else
         {
-            $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
-            $refl = new \ReflectionClass( $myClass );
-            return $refl->newInstanceArgs( [ $matchString ] );
+			switch( $fieldName )
+			{
+				case 'Location\Depth':
+				{
+					$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth';
+					$refl = new \ReflectionClass( $myClass );
+					return $refl->newInstanceArgs( [ '=', $matchString ] );
+				}
+				break;
+
+                case 'Visibility':
+                {
+                    $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
+                    $refl = new \ReflectionClass( $myClass );
+					$parameter = strtoupper( $matchString ) === 'HIDDEN' ? 1 : 0;
+                    return $refl->newInstanceArgs( [ $parameter ] );
+                }
+
+				default:
+				{
+					$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
+					$refl = new \ReflectionClass( $myClass );
+					return $refl->newInstanceArgs( [ $matchString ] );
+				}
+			}
         }
     }
 
