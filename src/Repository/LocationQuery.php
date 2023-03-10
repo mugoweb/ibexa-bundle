@@ -17,6 +17,9 @@ use eZ\Publish\API\Repository\Values\Content\LocationQuery as eZLocationQuery;
  *      Example for visible content: Visibility:visible
  *      Example for hidden content: Visibility:hidden
  * - Field.<identifier>
+ * - DatePublished
+ * - DateModified
+ *      Example: DatePublished:>2020-10-20
  *
  * Sort Fields - eZ\Publish\API\Repository\Values\Content\Query\SortClause\*
  * - ContentName
@@ -28,6 +31,7 @@ use eZ\Publish\API\Repository\Values\Content\LocationQuery as eZLocationQuery;
 class LocationQuery extends eZLocationQuery
 {
     protected static $subQueries;
+    protected static $quotedStrings;
 
     /**
      * @param string $queryString
@@ -35,66 +39,100 @@ class LocationQuery extends eZLocationQuery
      * @param int $limit
      * @return eZLocationQuery
      */
-    static public function build( string $queryString, string $sortString = '', int $limit = 0 ) : eZLocationQuery
+    static public function build(
+        string $queryString,
+        string $sortString = '',
+        int $limit = 0
+    ) : eZLocationQuery
     {
         $locationQuery = new self();
-		$queryString = trim( $queryString );
+        $queryString = trim( $queryString );
 
-		if( $queryString )
-		{
-			$locationQuery->query = self::parseQueryString( $queryString );
+        if( $queryString )
+        {
+            $locationQuery->query = self::parseQueryString( $queryString );
+        }
 
-			if( $sortString )
-			{
-				self::parseSorting( $locationQuery, $sortString );
-			}
+        if( $sortString )
+        {
+            $locationQuery->sortClauses = self::parseSorting( $sortString );
+        }
 
-			if( $limit )
-			{
-				$locationQuery->limit = $limit;
-			}
-		}
+        if( $limit )
+        {
+            $locationQuery->limit = $limit;
+        }
 
         return $locationQuery;
+    }
+
+    /**
+     * Identifies all quoted strings in order to package them
+     *
+     * @param $queryString
+     * @return object
+     */
+    static protected function parseQueryString( $queryString )
+    {
+        // identifies all quoted strings
+        preg_match_all( '/(["\'])((\\\\{2})*|(.*?[^\\\\](\\\\{2})*))\1/', $queryString, $matches );
+
+        if( !empty( $matches[0] ) )
+        {
+            foreach( $matches[0] as $index => $match )
+            {
+                // Remove quotes
+                $unQuotedString = trim( substr( $match, 1, -1 ) );
+
+                $id = md5( $index . '_' . $unQuotedString );
+                self::$quotedStrings[ $id ] = $unQuotedString;
+                $queryString = str_replace( $match, '"'. $id . '"', $queryString );
+            }
+        }
+
+        return self::parseSimplifiedQueryString( $queryString );
     }
 
     /**
      * @param $queryString
      * @return object
      */
-    static protected function parseQueryString( $queryString )
+    static protected function parseSimplifiedQueryString( $queryString )
     {
-        // resolve brackets
+        // resolve most outer brackets
+        // TODO: cannot handle quoted strings
         preg_match( '/\((?:[^)(]+|(?R))*+\)/', $queryString, $matches );
 
         if( !empty( $matches ) )
-	    {
+        {
             foreach( $matches as $index => $match )
             {
+                // Remove brackets
                 $subQueryString = trim( substr( $match, 1, -1 ) );
 
                 $id = md5( $index . '_' . $subQueryString );
-                self::$subQueries[ $id ] = self::parseQueryString( $subQueryString );
+                self::$subQueries[ $id ] = self::parseSimplifiedQueryString( $subQueryString );
                 $queryString = str_replace( $match, 'SUBQUERY:' . $id, $queryString );
+                //echo $queryString . "\n";
             }
         }
 
         // Matching all word of the query sting.
-		// For example:
-		// - "ContentTypeIdentifier:product_category"
-		// - "and"
+        // For example:
+        // - "ContentTypeIdentifier:product_category"
+        // - "and"
         preg_match_all( '/(.+?)(?:$|\s+)/', $queryString, $matches );
         $words = $matches[1];
 
         $conditions = [];
-		// Only supporting single type of operator
+        // Only supporting single type of operator
         $logicalOperator = '';
         foreach( $words as $word )
         {
-			//TODO: only matching when outside of defined strings
+            //TODO: only matching when outside of a quoted strings
             if( strpos( $word, ':' ) )
             {
-                $conditions[] = self::parseCondition( $word );
+                $conditions[] = self::preParseCriterion( $word );
             }
             elseif( strtoupper( $word ) == 'AND' )
             {
@@ -110,18 +148,18 @@ class LocationQuery extends eZLocationQuery
         {
             return self::linkConditions( $conditions, $logicalOperator );
         }
-		// Single condition without logical operator
-		elseif( !$logicalOperator && count( $conditions ) == 1 )
-		{
-			return $conditions;
-		}
+        // Single condition without logical operator
+        elseif( !$logicalOperator && count( $conditions ) == 1 )
+        {
+            return $conditions[0];
+        }
         else
         {
             throw new \Exception( 'No logical operator found' );
         }
     }
 
-    static protected function parseSorting( $locationQuery, $sortString )
+    static protected function parseSorting( $sortString )
     {
         $parts = explode( ':', $sortString );
         $field = $parts[0];
@@ -137,22 +175,29 @@ class LocationQuery extends eZLocationQuery
         $refl = new \ReflectionClass( $myClass );
         $sortClause = $refl->newInstanceArgs( [ $methods[ strtoupper( $method ) ] ] );
 
-        $locationQuery->sortClauses = [ $sortClause ];
+        return [ $sortClause ];
     }
 
-    static protected function parseCondition( $word )
+    /**
+     * Check if LogicalNot - '!' in front of criterion string
+     *
+     * @param $word
+     * @return Query\Criterion\LogicalNot|object|null
+     * @throws \ReflectionException
+     */
+    static protected function preParseCriterion( $word )
     {
         preg_match( '/(?<operator>!|)(?<field>.*?):(?<value>.*)/', $word, $matches );
 
         if( $matches[ 'operator' ] == '!' )
         {
             return new Query\Criterion\LogicalNot(
-                self::getCriterion( $matches[ 'field' ], $matches[ 'value' ] )
+                self::parseCriterion( $matches[ 'field' ], $matches[ 'value' ] )
             );
         }
         else
         {
-            return self::getCriterion( $matches[ 'field' ], $matches[ 'value' ] );
+            return self::parseCriterion( $matches[ 'field' ], $matches[ 'value' ] );
         }
     }
 
@@ -163,9 +208,11 @@ class LocationQuery extends eZLocationQuery
      * @return object|void
      * @throws \ReflectionException
      */
-    static protected function getCriterion( string $fieldName, $matchString )
+    static protected function parseCriterion( string $fieldName, $matchString )
     {
-		// $fieldName references a content type field
+        $matchData = self::parseMatchString( $matchString );
+
+        // $fieldName references a content type field
         if( strpos( $fieldName, '.' ) )
         {
             $parts = explode( '.', $fieldName );
@@ -174,7 +221,13 @@ class LocationQuery extends eZLocationQuery
 
             $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field';
             $refl = new \ReflectionClass( $myClass );
-            return $refl->newInstanceArgs( [ $fieldIdentifier, Query\Criterion\Operator::CONTAINS ,$matchString ] );
+            return $refl->newInstanceArgs(
+                [
+                    $fieldIdentifier,
+                    Query\Criterion\Operator::CONTAINS,
+                    $matchData[ 'values' ][ 0 ]
+                ]
+            );
         }
         elseif( $fieldName == 'SUBQUERY' )
         {
@@ -182,32 +235,112 @@ class LocationQuery extends eZLocationQuery
         }
         else
         {
-			switch( $fieldName )
-			{
-				case 'Location\Depth':
-				{
-					$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth';
-					$refl = new \ReflectionClass( $myClass );
-					return $refl->newInstanceArgs( [ '=', $matchString ] );
-				}
-				break;
+            switch( $fieldName )
+            {
+                case 'Location\Depth':
+                    {
+                        $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth';
+                        $refl = new \ReflectionClass( $myClass );
+                        return $refl->newInstanceArgs( [ '=', $matchData[ 'values' ][ 0 ] ] );
+                    }
+                    break;
 
                 case 'Visibility':
+                    {
+                        $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
+                        $refl = new \ReflectionClass( $myClass );
+                        $parameter = strtoupper( $matchData[ 'values' ][ 0 ] ) === 'HIDDEN' ? 1 : 0;
+                        return $refl->newInstanceArgs( [ $parameter ] );
+                    }
+                    break;
+
+                case 'DatePublished':
+                case 'DateModified':
+                    {
+                        $targetMetadata = $fieldName === 'DatePublished' ? 'created' : 'modified';
+
+                        $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata';
+                        $refl = new \ReflectionClass( $myClass );
+                        $parameters =
+                            [
+                                $targetMetadata,
+                                $matchData[ 'operator' ],
+                                strtotime( $matchData[ 'values' ][ 0 ] ),
+                            ];
+                        return $refl->newInstanceArgs( $parameters );
+                    }
+                    break;
+
+                case 'Subtree':
+                    {
+                        $normalizedString = rtrim( $matchData[ 'values' ][ 0 ],'/' ) .'/';
+
+                        $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
+                        $refl = new \ReflectionClass( $myClass );
+                        return $refl->newInstanceArgs( [ $normalizedString ] );
+                    }
+                    break;
+
+                default:
                 {
                     $myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
                     $refl = new \ReflectionClass( $myClass );
-					$parameter = strtoupper( $matchString ) === 'HIDDEN' ? 1 : 0;
-                    return $refl->newInstanceArgs( [ $parameter ] );
+                    return $refl->newInstanceArgs( [ $matchData[ 'values' ] ] );
                 }
-
-				default:
-				{
-					$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
-					$refl = new \ReflectionClass( $myClass );
-					return $refl->newInstanceArgs( [ $matchString ] );
-				}
-			}
+            }
         }
+    }
+
+    static protected function parseMatchString( string $matchString ): array
+    {
+        // Simple matchString
+        $return =
+            [
+                'operator' => '=',
+                'values' => [ $matchString ],
+            ];
+
+        // Unpackage quoted strings
+        preg_match( '/"(.*?)"/', $matchString, $match );
+
+        if( !empty( $match ) )
+        {
+            $return[ 'values' ][0] = self::$quotedStrings[ $match[1] ];
+        }
+        else
+        {
+            // MatchString with an operator at the beginning
+            $operatorRegEx = '#\s*(>=|>|<|<=)\s*(".*?"|.*?)$#';
+            preg_match( $operatorRegEx, $matchString, $matches );
+
+            if( isset( $matches[1] ) && isset( $matches[2] ) )
+            {
+                $return =
+                    [
+                        'operator' => $matches[1],
+                        'values' => [ $matches[2] ],
+                    ];
+            }
+
+            // Matches [123,321] - Matching one of multiple values
+            preg_match( '/\[(.*?)\]/', $matchString, $matches );
+
+            if( isset( $matches[1] ) )
+            {
+                $return =
+                    [
+                        'operator' => 'IN',
+                        'values' => explode( ',', $matches[1] ),
+                    ];
+            }
+
+
+            //TODO: implement [ 100 TO * ]
+            // $rangeRegEx = '#\[\s*(".*?"|.*?)\s+..\s+(".*?"|.*?)s*\]#';
+            // preg_match( $rangeRegEx, $matchString, $matches );
+        }
+
+        return $return;
     }
 
     static protected function linkConditions( $conditions, $logicalOperator )
