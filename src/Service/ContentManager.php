@@ -1,6 +1,6 @@
 <?php
 
-namespace MugoWeb\MugoIbexa\Services;
+namespace MugoWeb\IbexaBundle\Services;
 
 use \Symfony\Component\DependencyInjection\ContainerInterface;
 use EzSystems\PlatformHttpCacheBundle\PurgeClient\RepositoryPrefixDecorator;
@@ -297,7 +297,7 @@ class ContentManager
             $this->repository->sudo(
                 function( $repository ) use ( $locationId, $self ) {
                     return $self->_moveLocation( $sourceLocationId, $targetLocationId );
-                } 
+                }
             );
         }
     }
@@ -327,7 +327,7 @@ class ContentManager
             $this->repository->sudo(
                 function( $repository ) use ( $locationId, $self ) {
                     return $self->_deleteLocation( $locationId );
-                } 
+                }
             );
         }
     }
@@ -399,13 +399,13 @@ class ContentManager
         $reverseRelatedContentIds = false;
         $relations = $this->contentService->loadReverseRelations( $contentInfo );
         // store in a array a list of content ids of the reverse related objects
-        foreach ($relations as $relation) 
+        foreach ($relations as $relation)
         {
             if( $relation->getSourceContentInfo()->id )
             {
                 $reverseRelatedContentIds[] = $relation->getSourceContentInfo()->id;
             }
-        }        
+        }
         return $reverseRelatedContentIds;
     }
 }

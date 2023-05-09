@@ -28,6 +28,19 @@ Use this path to access it:
 
 /query
 
+Log user hash generation
+-
+
+To enable add following to your service configuration:
+```
+  # Enable to log user variation hashes
+  fos_http_cache.user_context.hash_generator:
+    class: MugoWeb\IbexaBundle\Service\DebugHashGenerator
+    arguments:
+      $cachePool: '@ibexa.cache_pool'
+
+```
+
 Commands
 -
 
@@ -36,3 +49,4 @@ php bin/console ibexa:trash:purge <limit>
 ```
 
 Command to purge items from the trash
+

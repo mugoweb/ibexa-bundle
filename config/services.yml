@@ -2,6 +2,12 @@ services:
   # Commands
   MugoWeb\IbexaBundle\Command\PurgeTrashCommand: ~
 
+  MugoWeb\IbexaBundle\Command\DumpUserHashVariations:
+    arguments:
+      $cachePool: '@ibexa.cache_pool'
+    tags:
+      - { name: console.command }
+
   MugoWeb\IbexaBundle\Controller\QueryController:
     autowire: true
     autoconfigure: true
