@@ -3,18 +3,26 @@
 namespace MugoWeb\IbexaBundle\Tests;
 
 use MugoWeb\IbexaBundle\Repository\LocationQuery;
+use MugoWeb\IbexaBundle\Repository\Query;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use PHPUnit\Exception;
 
-class NewsletterGeneratorTest extends KernelTestCase
+class LocationQueryTest extends KernelTestCase
 {
+
+    public function testQueryBuildWithEmptyString()
+    {
+        $locationQuery = Query::build( '' );
+        $this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query', $locationQuery );
+    }
+
     public function testBuildWithEmptyString()
     {
         $locationQuery = LocationQuery::build( '' );
-        $this->assertInstanceOf( 'MugoWeb\IbexaBundle\Repository\LocationQuery', $locationQuery );
+        $this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\LocationQuery', $locationQuery );
 
         $locationQuery = LocationQuery::build( ' ' );
-        $this->assertInstanceOf( 'MugoWeb\IbexaBundle\Repository\LocationQuery', $locationQuery );
+        $this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\LocationQuery', $locationQuery );
     }
 
     public function testBuildWithEmptySingleCondition()

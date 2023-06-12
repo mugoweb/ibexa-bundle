@@ -10,6 +10,11 @@ If you'd like to use the features _location quick finder_ or _Location query tes
 you would need to load the _routes.yml_ file of this bundle. Tip: use a _path prefix_
 to avoid path conflicts.
 
+Tests
+=
+
+`php bin/phpunit vendor/mugoweb/ibexa-bundle/tests/`
+
 Features
 =
 
