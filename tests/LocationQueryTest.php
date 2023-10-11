@@ -2,14 +2,19 @@
 
 namespace MugoWeb\IbexaBundle\Tests;
 
+use eZ\Publish\API\Repository\Values\Content\Query\Criterion\ParentLocationId;
+use eZ\Publish\API\Repository\Values\Filter\Filter;
+use MugoWeb\IbexaBundle\lib\QueryStringToCriterions;
 use MugoWeb\IbexaBundle\Repository\LocationQuery;
 use MugoWeb\IbexaBundle\Repository\Query;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use PHPUnit\Exception;
 
+/*
+ * TODO: move the tests to the QueryStringParser.
+ */
 class LocationQueryTest extends KernelTestCase
 {
-
     public function testQueryBuildWithEmptyString()
     {
         $locationQuery = Query::build( '' );
@@ -118,78 +123,24 @@ class LocationQueryTest extends KernelTestCase
         );
     }
 
-    public function testParseMatchStringNoOperator()
-    {
-        $locationQuery = new LocationQuery();
+	public function testSimpleSortString()
+	{
+		$locationQuery = LocationQuery::build( '', 'DatePublished:ASC' );
 
-        $returnVal = $this->callStaticMethod(
-            $locationQuery,
-            'parseMatchString',
-            array( '100' )
-        );
+		$this->assertInstanceOf(
+			'eZ\Publish\API\Repository\Values\Content\Query\SortClause\DatePublished',
+			$locationQuery->sortClauses[ 0 ]
+		);
+	}
 
-        $expected =
-            [
-                'operator' => '=',
-                'values' => [ '100' ],
-            ];
+	public function testFilter()
+	{
+		ParentLocationId::class;
+		$filter = (new Filter())->withCriterion( QueryStringToCriterions::parseQueryString( 'ContentTypeIdentifier:article' ) );
 
-        $this->assertEquals( $expected, $returnVal );
-    }
-
-    public function testParseMatchStringGreatherThanOperator()
-    {
-        $locationQuery = new LocationQuery();
-
-        $returnVal = $this->callStaticMethod(
-            $locationQuery,
-            'parseMatchString',
-            array( '>100' )
-        );
-
-        $expected =
-            [
-                'operator' => '>',
-                'values' => [ '100' ],
-            ];
-
-        $this->assertEquals( $expected, $returnVal );
-    }
-
-    public function testParseMatchStringInGivenValues()
-    {
-        $locationQuery = new LocationQuery();
-
-        $returnVal = $this->callStaticMethod(
-            $locationQuery,
-            'parseMatchString',
-            array( '[123,321]' )
-        );
-
-        $expected =
-            [
-                'operator' => 'IN',
-                'values' => [ '123', '321' ],
-            ];
-
-        $this->assertEquals( $expected, $returnVal );
-    }
-
-    public function testSimpleSortString()
-    {
-        $locationQuery = LocationQuery::build( '', 'DatePublished:ASC' );
-
-        $this->assertInstanceOf(
-            'eZ\Publish\API\Repository\Values\Content\Query\SortClause\DatePublished',
-            $locationQuery->sortClauses[ 0 ]
-        );
-    }
-
-    private function callStaticMethod( $obj, $name, array $args )
-    {
-        $class = new \ReflectionClass( $obj );
-        $method = $class->getMethod( $name );
-        $method->setAccessible( true );
-        return $method->invokeArgs( null, $args );
-    }
+		$this->assertInstanceOf(
+			'eZ\Publish\SPI\Repository\Values\Filter\FilteringCriterion',
+			$filter->getCriterion()
+		);
+	}
 }
