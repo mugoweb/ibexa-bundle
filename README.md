@@ -17,7 +17,6 @@ Tests
 
 Features
 =
-
 Location quick finder
 -
 For a given location ID, following path redirects to the
@@ -55,3 +54,15 @@ php bin/console ibexa:trash:purge <limit>
 
 Command to purge items from the trash
 
+LocationQuery
+-
+A different way to generate the LocationQuery. You can use it then for the find or search service.
+Here is an example:
+
+```
+$locationQuery = LocationQuery::build(
+    'Subtree:' . $parentLocation->pathString . ' and (ContentTypeIdentifier:article or ContentTypeIdentifier:folder ro ContentTypeIdentifier:blog)',
+    'Location\Priority: ASC',
+     5
+);
+```
