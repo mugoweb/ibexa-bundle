@@ -127,8 +127,8 @@ class QueryStringParser
 
 		$methods =
 			[
-				'ASC' => self::SORT_ASC,
-				'DESC' => self::SORT_DESC,
+				'ASC' => eZQuery::SORT_ASC,
+				'DESC' => eZQuery::SORT_DESC,
 			];
 
 		$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\SortClause\\' . $field;

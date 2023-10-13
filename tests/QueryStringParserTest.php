@@ -67,6 +67,18 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertEquals( $expected, $returnVal );
 	}
 
+	public function testParseSortClauses()
+	{
+		$sort = QueryStringParser::parseSortClauses( 'Location\Priority:ASC' );
+
+		$this->assertInstanceOf(
+			'eZ\Publish\API\Repository\Values\Content\Query\SortClause\Location\Priority',
+			$sort[ 0 ]
+		);
+
+		$this->assertEquals( 'ascending', $sort[0]->direction );
+	}
+
 	private function callStaticMethod( $obj, $name, array $args )
 	{
 		$class = new \ReflectionClass( $obj );

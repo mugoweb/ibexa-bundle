@@ -4,7 +4,7 @@ namespace MugoWeb\IbexaBundle\Tests;
 
 use eZ\Publish\API\Repository\Values\Content\Query\Criterion\ParentLocationId;
 use eZ\Publish\API\Repository\Values\Filter\Filter;
-use MugoWeb\IbexaBundle\lib\QueryStringToCriterions;
+use MugoWeb\IbexaBundle\Parser\QueryStringParser;
 use MugoWeb\IbexaBundle\Repository\LocationQuery;
 use MugoWeb\IbexaBundle\Repository\Query;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -135,8 +135,7 @@ class LocationQueryTest extends KernelTestCase
 
 	public function testFilter()
 	{
-		ParentLocationId::class;
-		$filter = (new Filter())->withCriterion( QueryStringToCriterions::parseQueryString( 'ContentTypeIdentifier:article' ) );
+		$filter = (new Filter())->withCriterion( QueryStringParser::parseCriterions( 'ContentTypeIdentifier:article' ) );
 
 		$this->assertInstanceOf(
 			'eZ\Publish\SPI\Repository\Values\Filter\FilteringCriterion',
