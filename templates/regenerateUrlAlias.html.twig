@@ -1,0 +1,19 @@
+<div>
+	<h1>Regenerate URL Aliases</h1>
+
+	<form method="POST">
+		<div>
+			<label>Location ID:</label>
+			<input name="locationId" value="" />
+		</div>
+
+		<button name="submit" type="submit" value="1">Submit</button>
+	</form>
+
+	{% if message %}
+		<h2>Result</h2>
+		<div>
+			{{ message }}
+		</div>
+	{% endif %}
+</div>

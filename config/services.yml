@@ -11,3 +11,7 @@ services:
   MugoWeb\IbexaBundle\Controller\QueryController:
     autowire: true
     autoconfigure: true
+
+  MugoWeb\IbexaBundle\Controller\ToolsController:
+    autowire: true
+    autoconfigure: true

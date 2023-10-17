@@ -7,3 +7,8 @@ mugoweb_ibexa_find_location:
   path: /location/{locationId}
   defaults:
     _controller: 'MugoWeb\IbexaBundle\Controller\QueryController::location'
+
+mugoweb_ibexa_regenerate_url_alias:
+  path: /url_alias/regenerate
+  defaults:
+    _controller: 'MugoWeb\IbexaBundle\Controller\ToolsController::regenerateUrlAlias'
