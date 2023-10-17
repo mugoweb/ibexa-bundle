@@ -4,7 +4,7 @@ services:
 
   MugoWeb\IbexaBundle\Command\DumpUserHashVariations:
     arguments:
-      $cachePool: '@ezpublish.cache_pool'
+      $cachePool: '@ibexa.cache_pool'
     tags:
       - { name: console.command }
 
