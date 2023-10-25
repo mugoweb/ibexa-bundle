@@ -10,6 +10,23 @@ use PHPUnit\Exception;
 
 class QueryStringParserTest extends KernelTestCase
 {
+	public function testBuildWithEmptySingleCondition()
+	{
+		$condition = QueryStringParser::parseCriterions( 'Subtree:/1/2/' );
+
+		$this->assertInstanceOf(
+			'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree',
+			$condition
+		);
+
+		$condition2 = QueryStringParser::parseCriterions( 'Subtree:[/1/2/,/1/54]' );
+
+		$this->assertEquals(
+			'/1/54/',
+			$condition2->value[1]
+		);
+	}
+
 	public function testParseMatchStringNoOperator()
 	{
 		$queryStringParser = new QueryStringParser();
@@ -67,7 +84,7 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertEquals( $expected, $returnVal );
 	}
 
-	public function testParseSortClauses()
+	public function testParseSortClausesLocation()
 	{
 		$sort = QueryStringParser::parseSortClauses( 'Location\Priority:ASC' );
 
@@ -77,6 +94,19 @@ class QueryStringParserTest extends KernelTestCase
 		);
 
 		$this->assertEquals( 'ascending', $sort[0]->direction );
+	}
+
+	public function testParseSortClausesField()
+	{
+		$sort = QueryStringParser::parseSortClauses( 'Field.article.publish_date:desc' );
+
+		$this->assertInstanceOf(
+			'eZ\Publish\API\Repository\Values\Content\Query\SortClause\Field',
+			$sort[ 0 ]
+		);
+
+		$this->assertEquals( 'publish_date', $sort[ 0 ]->targetData->fieldIdentifier );
+		$this->assertEquals( 'descending', $sort[0]->direction );
 	}
 
 	private function callStaticMethod( $obj, $name, array $args )

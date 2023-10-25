@@ -76,6 +76,7 @@ class QueryStringParser
 	 *      Example for visible content: Visibility:visible
 	 *      Example for hidden content: Visibility:hidden
 	 * - Field.<identifier>
+	 *      Example: Field.name:"Top News"
 	 * - DatePublished
 	 * - DateModified
 	 *      Example: DatePublished:>2020-10-20
@@ -118,12 +119,49 @@ class QueryStringParser
 	 * - DatePublished
 	 * - DateModified
 	 * - Location\Priority
+	 * - Field.<content type identifier>.<field identifier>
+	 * - CustomField.<field identifier> (only for index based search)
 	*/
 	static public function parseSortClauses( string $sortString )
 	{
-		$parts = explode( ':', $sortString );
-		$field = $parts[0];
-		$method = strtoupper( trim( $parts[1] ) );
+		list( $method, $sortField, $contentTypeIdentifier, $fieldIdentifier ) =
+			self::parseSortClausesParts( $sortString );
+
+		$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\SortClause\\' . $sortField;
+		$refl = new \ReflectionClass( $myClass );
+
+		switch( $sortField )
+		{
+			case 'Field':
+			{
+				$sortClause = $refl->newInstanceArgs( [ $contentTypeIdentifier, $fieldIdentifier, $method ] );
+			}
+			break;
+
+			case 'CustomField':
+			{
+				$sortClause = $refl->newInstanceArgs( [ $fieldIdentifier, $method ] );
+			}
+			break;
+
+			default:
+			{
+				$sortClause = $refl->newInstanceArgs( [ $method ] );
+			}
+		}
+
+		return [ $sortClause ];
+	}
+
+	static protected function parseSortClausesParts( string $sortString ) : array
+	{
+		$return =
+			[
+				'method' => null,
+				'sortField' => null,
+				'contentTypeIdentifier' => null,
+				'fieldIdentifier' => null,
+			];
 
 		$methods =
 			[
@@ -131,11 +169,41 @@ class QueryStringParser
 				'DESC' => eZQuery::SORT_DESC,
 			];
 
-		$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\SortClause\\' . $field;
-		$refl = new \ReflectionClass( $myClass );
-		$sortClause = $refl->newInstanceArgs( [ $methods[ strtoupper( $method ) ] ] );
+		$parts = explode( ':', $sortString );
+		$method = $methods[ strtoupper( trim( $parts[1] ) ) ] ?? null;
 
-		return [ $sortClause ];
+		if( $method )
+		{
+			$return[ 'method' ] = $method;
+
+			$sortFieldParts = explode( '.', $parts[0] );
+
+			switch( count( $sortFieldParts ) )
+			{
+				case 1:
+					{
+						$return[ 'sortField' ] = $sortFieldParts[0];
+					}
+					break;
+
+				case 2:
+					{
+						$return[ 'sortField' ] = $sortFieldParts[0];
+						$return[ 'fieldIdentifier' ] = $sortFieldParts[1];
+					}
+					break;
+
+				case 3:
+					{
+						$return[ 'sortField' ] = $sortFieldParts[0];
+						$return[ 'contentTypeIdentifier' ] = $sortFieldParts[1];
+						$return[ 'fieldIdentifier' ] = $sortFieldParts[2];
+					}
+					break;
+			}
+		}
+
+		return array_values( $return );
 	}
 
 	static protected function parseSimplifiedQueryString( $queryString )
@@ -281,11 +349,15 @@ class QueryStringParser
 
 				case 'Subtree':
 					{
-						$normalizedString = rtrim( $matchData[ 'values' ][ 0 ],'/' ) .'/';
+						$values = $matchData[ 'values' ];
+						array_walk($values, function( &$item, $key )
+						{
+							$item = rtrim( $item,'/' ) .'/';
+						});
 
-						$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
+						$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree';
 						$refl = new \ReflectionClass( $myClass );
-						return $refl->newInstanceArgs( [ $normalizedString ] );
+						return $refl->newInstanceArgs( [ $values ] );
 					}
 					break;
 
