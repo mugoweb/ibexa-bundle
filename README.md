@@ -54,9 +54,22 @@ php bin/console ibexa:trash:purge <limit>
 
 Command to purge items from the trash
 
-LocationQuery
+QueryStringParser
 -
-A different way to generate the LocationQuery. You can use it then for the find or search service.
+
+Here is an example:
+```
+$query = QueryStringParser::getQueryObject(
+	'LocationQuery',
+	'ParentLocationId:123 and ContentTypeIdentifier:article',
+	'Field.article.publish_date:DESC',
+	20
+);
+```
+
+LocationQuery and Query
+-
+__Consider to use the QueryStringParser instead__.  A different way to generate the LocationQuery. You can use it then for the find or search service.
 Here is an example:
 
 ```
