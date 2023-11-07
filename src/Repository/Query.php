@@ -33,7 +33,8 @@ class Query extends eZQuery
     protected static $subQueries;
     protected static $quotedStrings;
 
-    /**
+	/**
+	 * @depracated Use QueryParser instead
      * @param string $queryString
      * @param string $sortString
      * @param int $limit

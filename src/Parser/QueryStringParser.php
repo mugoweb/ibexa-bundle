@@ -15,7 +15,9 @@ class QueryStringParser
 		string $objectType,
 		string $queryString,
 		string $sortString = '',
-		int $limit = 0
+		int $limit = 0,
+		int $offset = 0,
+		bool $performCount = false
 	)
 	{
 		switch( $objectType )
@@ -26,6 +28,7 @@ class QueryStringParser
 				$className = 'eZ\Publish\API\Repository\Values\Content\\' . $objectType;
 				$query = new $className;
 				$query->query = self::parseCriterions( $queryString );
+				$query->performCount = $performCount;
 
 				if( $sortString )
 				{
@@ -35,6 +38,11 @@ class QueryStringParser
 				if( $limit )
 				{
 					$query->limit = $limit;
+				}
+
+				if( $offset )
+				{
+					$query->offset = $offset;
 				}
 
 				return $query;
@@ -54,6 +62,11 @@ class QueryStringParser
 				if( $limit )
 				{
 					$filter->withLimit( $limit );
+				}
+
+				if( $offset )
+				{
+					$filter->withOffset( $offset );
 				}
 
 				return $filter;
