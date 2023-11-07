@@ -2,7 +2,7 @@ services:
   # Commands
   MugoWeb\IbexaBundle\Command\PurgeTrashCommand:
     arguments:
-      - '@ezpublish.api.repository'
+      - '@ibexa.api.repository'
     tags:
     - { name: console.command }
 
