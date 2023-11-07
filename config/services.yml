@@ -1,6 +1,10 @@
 services:
   # Commands
-  MugoWeb\IbexaBundle\Command\PurgeTrashCommand: ~
+  MugoWeb\IbexaBundle\Command\PurgeTrashCommand:
+    arguments:
+      - '@ezpublish.api.repository'
+    tags:
+    - { name: console.command }
 
   MugoWeb\IbexaBundle\Command\DumpUserHashVariations:
     arguments:
