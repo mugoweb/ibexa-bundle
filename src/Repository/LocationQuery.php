@@ -29,6 +29,13 @@ use eZ\Publish\API\Repository\Values\Content\LocationQuery as eZLocationQuery;
  */
 class LocationQuery extends Query
 {
+	/**
+	 * @depracated Use QueryParser instead
+	 * @param string $queryString
+	 * @param string $sortString
+	 * @param int $limit
+	 * @return eZLocationQuery
+	 */
     static public function build(
         string $queryString,
         string $sortString = '',
