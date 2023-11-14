@@ -10,7 +10,7 @@ use PHPUnit\Exception;
 
 class QueryStringParserTest extends KernelTestCase
 {
-	public function testBuildWithEmptySingleCondition()
+	public function testParseCriterionsWithEmptySingleCondition()
 	{
 		$condition = QueryStringParser::parseCriterions( 'Subtree:/1/2/' );
 
@@ -26,6 +26,25 @@ class QueryStringParserTest extends KernelTestCase
 			$condition2->value[1]
 		);
 	}
+
+//	public function testParseCriterionsNonExistingCriterion()
+//	{
+//		$condition = QueryStringParser::parseCriterions( 'Netgen\TagsBundle\API\Repository\Values\Content\Query\Criterion\TagSubtree:140' );
+//
+//		dd( $condition );
+//
+//		//TODO: currently errors out, it probably should return a meaningful exception
+//		$condition = QueryStringParser::parseCriterions( 'DoesNotExists:/1/2/' );
+//		$this->assertNull( $condition );
+//
+//		$condition = QueryStringParser::parseCriterions( 'DoesNotExists:/1/2/ and Subtree:/1/2/' );
+//	}
+//
+//	public function testParseCriterionsDepth()
+//	{
+//		// TODO: confirm Exception
+//		$condition = QueryStringParser::parseCriterions( 'Location\Depth: shouldBeANumber' );
+//	}
 
 	public function testParseMatchStringNoOperator()
 	{
@@ -82,6 +101,32 @@ class QueryStringParserTest extends KernelTestCase
 			];
 
 		$this->assertEquals( $expected, $returnVal );
+	}
+
+	public function testparseCriterionDatePublishedShortCut()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'parseCriterion',
+			array( 'DatePublished', '2000-10-10' )
+		);
+
+		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata', $returnVal );
+	}
+
+	public function testparseCriterionContentTypeIdentifierFullName()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'parseCriterion',
+			array( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\ContentTypeIdentifier', 'article' )
+		);
+
+		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\ContentTypeIdentifier', $returnVal );
 	}
 
 	public function testParseSortClausesLocation()

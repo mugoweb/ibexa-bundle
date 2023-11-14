@@ -2,6 +2,7 @@
 
 namespace MugoWeb\IbexaBundle\Parser;
 
+use ReflectionClass;
 use eZ\Publish\API\Repository\Values\Content\Query as eZQuery;
 use eZ\Publish\SPI\Repository\Values\Filter\FilteringCriterion;
 use eZ\Publish\API\Repository\Values\Filter\Filter;
@@ -254,7 +255,11 @@ class QueryStringParser
 			//TODO: only matching when outside of a quoted strings
 			if( strpos( $word, ':' ) )
 			{
-				$conditions[] = self::preParseCriterion( $word );
+				$criterion = self::preParseCriterion( $word );
+				if( $criterion )
+				{
+					$conditions[] = $criterion;
+				}
 			}
 			elseif( strtoupper( $word ) == 'AND' )
 			{
@@ -285,82 +290,88 @@ class QueryStringParser
 	{
 		preg_match( '/(?<operator>!|)(?<field>.*?):(?<value>.*)/', $word, $matches );
 
+		$criterion = self::parseCriterion( $matches[ 'field' ], $matches[ 'value' ] );
+
 		if( $matches[ 'operator' ] == '!' )
 		{
-			return new eZQuery\Criterion\LogicalNot(
-				self::parseCriterion( $matches[ 'field' ], $matches[ 'value' ] )
-			);
+			$criterion = new eZQuery\Criterion\LogicalNot( $criterion );
 		}
-		else
-		{
-			return self::parseCriterion( $matches[ 'field' ], $matches[ 'value' ] );
-		}
+
+		return $criterion;
 	}
 
-	static protected function parseCriterion( string $fieldName, $matchString )
+	/**
+	 * @param string $className either shortcut class name or full class name
+	 * @param $matchString
+	 * @return mixed|object|string|void|null
+	 * @throws \ReflectionException
+	 */
+	static protected function parseCriterion( string $className, $matchString )
 	{
-		$matchData = self::parseMatchString( $matchString );
-
-		// $fieldName references a content type field
-		if( strpos( $fieldName, '.' ) )
-		{
-			$parts = explode( '.', $fieldName );
-			$fieldName = $parts[0];
-			$fieldIdentifier = $parts[1];
-
-			$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field';
-			$refl = new \ReflectionClass( $myClass );
-			return $refl->newInstanceArgs(
-				[
-					$fieldIdentifier,
-					eZQuery\Criterion\Operator::CONTAINS,
-					$matchData[ 'values' ][ 0 ]
-				]
-			);
-		}
-		elseif( $fieldName == 'SUBQUERY' )
+		// TODO: document this
+		if( $className == 'SUBQUERY' )
 		{
 			return self::$subQueries[ $matchString ];
 		}
-		else
+
+		$reflectionClass = self::classNameToCriterion( $className );
+
+		$matchData = self::parseMatchString( $matchString );
+
+		// $fieldName references a content type field
+		if( $reflectionClass )
 		{
-			switch( $fieldName )
+			switch( $reflectionClass->name )
 			{
-				case 'Location\Depth':
+				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field':
+				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Field':
+				{
+					$parts = explode( '.', $className );
+					$className = $parts[0];
+					$fieldIdentifier = $parts[1];
+
+					return $reflectionClass->newInstanceArgs(
+						[
+							$fieldIdentifier,
+							eZQuery\Criterion\Operator::CONTAINS,
+							$matchData[ 'values' ][ 0 ]
+						]
+					);
+				}
+				break;
+
+				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth':
+				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Location\Depth':
 					{
-						$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth';
-						$refl = new \ReflectionClass( $myClass );
-						return $refl->newInstanceArgs( [ '=', $matchData[ 'values' ][ 0 ] ] );
+						return $reflectionClass->newInstanceArgs( [ '=', $matchData[ 'values' ][ 0 ] ] );
 					}
 					break;
 
-				case 'Visibility':
+				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Visibility':
+				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Visibility':
 					{
-						$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
-						$refl = new \ReflectionClass( $myClass );
 						$parameter = strtoupper( $matchData[ 'values' ][ 0 ] ) === 'HIDDEN' ? 1 : 0;
-						return $refl->newInstanceArgs( [ $parameter ] );
+						return $reflectionClass->newInstanceArgs( [ $parameter ] );
 					}
 					break;
 
-				case 'DatePublished':
-				case 'DateModified':
+				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata':
+				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\DateMetadata':
 					{
-						$targetMetadata = $fieldName === 'DatePublished' ? 'created' : 'modified';
+						$targetMetadata = $className === 'DatePublished' ? 'created' : 'modified';
 
-						$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata';
-						$refl = new \ReflectionClass( $myClass );
 						$parameters =
 							[
 								$targetMetadata,
 								$matchData[ 'operator' ],
 								strtotime( $matchData[ 'values' ][ 0 ] ),
 							];
-						return $refl->newInstanceArgs( $parameters );
+						return $reflectionClass->newInstanceArgs( $parameters );
 					}
 					break;
 
-				case 'Subtree':
+				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree':
+				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Subtree':
 					{
 						$values = $matchData[ 'values' ];
 						array_walk($values, function( &$item, $key )
@@ -368,19 +379,53 @@ class QueryStringParser
 							$item = rtrim( $item,'/' ) .'/';
 						});
 
-						$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree';
-						$refl = new \ReflectionClass( $myClass );
-						return $refl->newInstanceArgs( [ $values ] );
+						return $reflectionClass->newInstanceArgs( [ $values ] );
 					}
 					break;
 
 				default:
 				{
-					$myClass = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $fieldName;
-					$refl = new \ReflectionClass( $myClass );
-					return $refl->newInstanceArgs( [ $matchData[ 'values' ] ] );
+					return $reflectionClass->newInstanceArgs( [ $matchData[ 'values' ] ] );
 				}
 			}
+		}
+	}
+
+	static protected function classNameToCriterion( string $className ) :? ReflectionClass
+	{
+		if( strpos( $className, '.' ) )
+		{
+			$className = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field';
+		}
+		else
+		{
+			switch( $className )
+			{
+				case 'DatePublished':
+				case 'DateModified':
+					{
+						$className = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata';
+					}
+					break;
+
+				default:
+				{
+					// Assuming that we have a shortcut to an Ibexa Criterion
+					if( count( explode( '\\', $className ) ) < 3 )
+					{
+						$className = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $className;
+					}
+				}
+			}
+		}
+
+		if( class_exists( $className ) )
+		{
+			return new \ReflectionClass( $className );
+		}
+		else
+		{
+			throw \Exception( 'No valid Criterion specified' );
 		}
 	}
 
