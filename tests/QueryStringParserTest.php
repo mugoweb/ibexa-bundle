@@ -19,6 +19,14 @@ class QueryStringParserTest extends KernelTestCase
 			$condition
 		);
 
+// The 'words' regular expression is failing on this
+//		$conditionWithSpace = QueryStringParser::parseCriterions( 'Subtree: /1/2/ ' );
+//
+//		$this->assertInstanceOf(
+//			'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree',
+//			$conditionWithSpace
+//		);
+
 		$condition2 = QueryStringParser::parseCriterions( 'Subtree:[/1/2/,/1/54]' );
 
 		$this->assertEquals(

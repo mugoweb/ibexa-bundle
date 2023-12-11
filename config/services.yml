@@ -19,3 +19,7 @@ services:
   MugoWeb\IbexaBundle\Controller\ToolsController:
     autowire: true
     autoconfigure: true
+
+  MugoWeb\IbexaBundle\Service\ContentManager:
+    autowire: true
+    autoconfigure: true

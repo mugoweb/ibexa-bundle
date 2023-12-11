@@ -1,6 +1,6 @@
 <?php
 
-namespace MugoWeb\IbexaBundle\Services;
+namespace MugoWeb\IbexaBundle\Service;
 
 use \Symfony\Component\DependencyInjection\ContainerInterface;
 use EzSystems\PlatformHttpCacheBundle\PurgeClient\RepositoryPrefixDecorator;
