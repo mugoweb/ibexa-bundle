@@ -3,7 +3,7 @@
 namespace MugoWeb\IbexaBundle\Service;
 
 use \Symfony\Component\DependencyInjection\ContainerInterface;
-use EzSystems\PlatformHttpCacheBundle\PurgeClient\RepositoryPrefixDecorator;
+use Ibexa\HttpCache\PurgeClient\RepositoryPrefixDecorator;
 use eZ\Publish\API\Repository\Values\Content\Content;
 use \Symfony\Component\Cache\Adapter\AdapterInterface;
 
@@ -46,11 +46,11 @@ class ContentManager
     function __construct( ContainerInterface $container, \Psr\Log\LoggerInterface $logger, RepositoryPrefixDecorator $cachePurger, AdapterInterface $pool )
     {
         $this->container = $container;
-        $this->repository = $this->container->get( 'ezpublish.api.repository' );
+        $this->repository = $this->container->get( 'ibexa.api.repository' );
         $this->locationService = $this->repository->getLocationService();
         $this->trashService = $this->repository->getTrashService();
         $this->contentService = $this->repository->getContentService();
-        $this->configResolver = $this->container->get( 'ezpublish.config.resolver' );
+        $this->configResolver = $this->container->get( 'ibexa.config.resolver' );
         $this->logger = $logger;
         $this->cachePurger = $cachePurger;
         $this->pool = $pool;
