@@ -20,6 +20,10 @@ services:
     autowire: true
     autoconfigure: true
 
+  MugoWeb\IbexaBundle\Controller\InspectController:
+    autowire: true
+    autoconfigure: true
+
   MugoWeb\IbexaBundle\Service\ContentManager:
     autowire: true
     autoconfigure: true
