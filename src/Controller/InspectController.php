@@ -14,9 +14,9 @@ class InspectController extends AbstractController
 {
 	private Connection $connection;
 
-	private array $errors;
-
 	private array $languages;
+
+	private array $fieldNames;
 
 	public function __construct( Connection $connection )
 	{
@@ -31,14 +31,23 @@ class InspectController extends AbstractController
 		{
 			$this->languages[ $row[ 'id' ] ] = $row[ 'locale' ];
 		}
+
+		$query = $this->connection->createQueryBuilder()
+			->select( '*' )
+			->from( 'ezcontentclass_attribute' )
+			->execute();
+
+		while( $row = $query->fetchAssociative() )
+		{
+			$this->fieldNames[ $row[ 'id' ] ] = $row[ 'identifier' ];
+		}
 	}
 
 	public function inspect( $type, $id1, $id2 ) : Response
 	{
-		$this->errors = [];
-		$objectId = $this->getObjectId( $type, $id1, $id2 );
-
 		$dom = new DOMDocument( '1.0', 'UTF-8' );
+
+		$objectId = $this->getObjectId( $dom, $type, $id1, $id2 );
 
 		$resultNode = $dom->appendChild( new DOMElement( 'Result' ) );
 		$resultNode->appendChild( new DOMElement( 'Errors' ) );
@@ -54,15 +63,7 @@ class InspectController extends AbstractController
 		return $response;
 	}
 
-	private function buildObjectXml( DOMNode $resultNode, int $objectId )
-	{
-		$cNode = $resultNode->appendChild( new DOMElement( 'ContentObject' ) );
-		$cNode->setAttribute( 'id', $objectId );
-
-		$this->getVersions( $cNode, $objectId );
-	}
-
-	private function getObjectId( $type, $id1, $id2 ) : int
+	private function getObjectId( DOMDocument $dom, string $type, int $id1, int $id2 ) : int
 	{
 		$objectId = 0;
 
@@ -72,12 +73,28 @@ class InspectController extends AbstractController
 				{
 					if( (int)$id1 )
 					{
-//					$query = $this->connection->createQueryBuilder()
-//						->select( '*' )
-//						->from( 'ezcontentobject_attribute' )
-//						->
+						$query = $this->connection->createQueryBuilder()
+							->select( '*' )
+							->from( 'ezcontentobject_attribute' )
+							->where( 'id = :id' )
+							->setParameter( 'id', (int)$id1 )
+							->execute();
+
+						$row = $query->fetchAssociative();
+
+						if( $row )
+						{
+							return $row[ 'contentobject_id' ];
+						}
+						else
+						{
+							$this->addError(
+								$dom->firstChild,
+								'Cannot find content object for given field ID.',
+								''
+							);
+						}
 					}
-					dd( $id2 );
 				}
 				break;
 
@@ -88,6 +105,40 @@ class InspectController extends AbstractController
 		}
 
 		return $objectId;
+	}
+
+	private function buildObjectXml( DOMNode $resultNode, int $objectId )
+	{
+		$cNode = $resultNode->appendChild( new DOMElement( 'ContentObject' ) );
+		$cNode->setAttribute( 'id', $objectId );
+
+		$this->getLocations( $cNode );
+		$this->getVersions( $cNode, $objectId );
+	}
+
+	private function getLocations( $cNode )
+	{
+		$objectId = $cNode->getAttribute( 'id' );
+
+		$query = $this->connection->createQueryBuilder()
+			->select( '*' )
+			->from( 'ezcontentobject_tree' )
+			->where( 'contentobject_id = :id' )
+			->setParameter( 'id', $objectId )
+			->execute();
+
+		while( $row = $query->fetchAssociative() )
+		{
+			$attributes =
+				[
+					'id' => $row[ 'node_id' ],
+					'path_string' => $row[ 'path_string' ],
+					'version_nr' => $row[ 'contentobject_version' ],
+				];
+
+			$lNode = $cNode->appendChild( new DOMElement( 'Location' ) );
+			$this->addAttributes( $lNode, $attributes );
+		}
 	}
 
 	private function getVersions( DOMNode $cNode, $objectId )
@@ -211,6 +262,7 @@ class InspectController extends AbstractController
 					'data_type' => $row[ 'data_type_string' ],
 					'language_code' => $row[ 'language_code' ],
 					'data_text' => $row[ 'data_text' ],
+					'field_identifier' => $this->fieldNames[ $row[ 'contentclassattribute_id' ] ],
 				];
 
 			$fieldNode = $fieldsNode->appendChild( new DOMElement( 'field' ) );
