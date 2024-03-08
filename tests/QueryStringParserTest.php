@@ -111,7 +111,7 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertEquals( $expected, $returnVal );
 	}
 
-	public function testparseCriterionDatePublishedShortCut()
+	public function testParseCriterionDatePublishedShortCut()
 	{
 		$queryStringParser = new QueryStringParser();
 
@@ -124,7 +124,7 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata', $returnVal );
 	}
 
-	public function testparseCriterionContentTypeIdentifierFullName()
+	public function testParseCriterionContentTypeIdentifierFullName()
 	{
 		$queryStringParser = new QueryStringParser();
 
@@ -160,6 +160,25 @@ class QueryStringParserTest extends KernelTestCase
 
 		$this->assertEquals( 'publish_date', $sort[ 0 ]->targetData->fieldIdentifier );
 		$this->assertEquals( 'descending', $sort[0]->direction );
+	}
+
+	public function testParseSortClausesLocationSortFieldSortOrder()
+	{
+		$sort = QueryStringParser::parseSortClauses( '9:0' );
+
+		$this->assertInstanceOf(
+			'eZ\Publish\API\Repository\Values\Content\Query\SortClause\ContentName',
+			$sort[ 0 ]
+		);
+
+		$this->assertEquals( 'descending', $sort[0]->direction );
+	}
+
+	public function testParseWrongSortClausesMethod()
+	{
+		$sort = QueryStringParser::parseSortClauses( 'Location\Priority:WRONG' );
+
+		$this->assertEquals( 'ascending', $sort[0]->direction );
 	}
 
 	private function callStaticMethod( $obj, $name, array $args )

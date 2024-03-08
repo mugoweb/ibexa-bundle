@@ -127,7 +127,7 @@ class QueryStringParser
 		return null;
 	}
 
-	/*
+	/**
 	 * Sort Fields - eZ\Publish\API\Repository\Values\Content\Query\SortClause\*
 	 * - ContentName
 	 * - DatePublished
@@ -135,6 +135,7 @@ class QueryStringParser
 	 * - Location\Priority
 	 * - Field.<content type identifier>.<field identifier>
 	 * - CustomField.<field identifier> (only for index based search)
+	 * - $location->sortField . ':' . $location->sortOrder (for example "9:1")
 	*/
 	static public function parseSortClauses( string $sortString )
 	{
@@ -181,10 +182,12 @@ class QueryStringParser
 			[
 				'ASC' => eZQuery::SORT_ASC,
 				'DESC' => eZQuery::SORT_DESC,
+				'0' => eZQuery::SORT_DESC,
+				'1' => eZQuery::SORT_ASC,
 			];
 
 		$parts = explode( ':', $sortString );
-		$method = $methods[ strtoupper( trim( $parts[1] ) ) ] ?? null;
+		$method = $methods[ strtoupper( trim( $parts[1] ) ) ] ?? eZQuery::SORT_ASC;
 
 		if( $method )
 		{
@@ -196,7 +199,25 @@ class QueryStringParser
 			{
 				case 1:
 					{
-						$return[ 'sortField' ] = $sortFieldParts[0];
+						if( preg_match( '#\d#', $sortFieldParts[0], $matches ) )
+						{
+							$sortFieldMap =
+								[
+									1 => 'Location\Path',
+									2 => 'DatePublished',
+									3 => 'DateModified',
+									4 => 'SectionIdentifier',
+									5 => 'Location\Depth',
+									8 => 'Location\Priority',
+									9 => 'ContentName',
+								];
+
+							$return[ 'sortField' ] = $sortFieldMap[ $sortFieldParts[0] ] ?? '';
+						}
+						else
+						{
+							$return[ 'sortField' ] = $sortFieldParts[0];
+						}
 					}
 					break;
 
