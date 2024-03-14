@@ -354,8 +354,8 @@ class QueryStringParser
 					return $reflectionClass->newInstanceArgs(
 						[
 							$fieldIdentifier,
-							eZQuery\Criterion\Operator::CONTAINS,
-							$matchData[ 'values' ][ 0 ]
+							$matchData[ 'operator' ],
+							$matchData[ 'values' ][ 0 ] // Cannot handle an array
 						]
 					);
 				}
@@ -469,14 +469,23 @@ class QueryStringParser
 		else
 		{
 			// MatchString with an operator at the beginning
-			$operatorRegEx = '#\s*(>=|>|<|<=)\s*(".*?"|.*?)$#';
+			$operatorRegEx = '#\s*(>=|>|<|<=|~)\s*(".*?"|.*?)$#';
 			preg_match( $operatorRegEx, $matchString, $matches );
 
 			if( isset( $matches[1] ) && isset( $matches[2] ) )
 			{
+				$operatorMap =
+					[
+						'>=' => '>=',
+						'>'  => '>',
+						'<'  => '<=',
+						'<=' => '<=',
+						'~'  => 'contains',
+					];
+
 				$return =
 					[
-						'operator' => $matches[1],
+						'operator' => $operatorMap[ $matches[1] ],
 						'values' => [ $matches[2] ],
 					];
 			}
