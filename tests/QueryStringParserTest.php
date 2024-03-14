@@ -92,6 +92,25 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertEquals( $expected, $returnVal );
 	}
 
+	public function testParseMatchStringContains()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'parseMatchString',
+			array( '~substring' )
+		);
+
+		$expected =
+			[
+				'operator' => 'contains',
+				'values' => [ 'substring' ],
+			];
+
+		$this->assertEquals( $expected, $returnVal );
+	}
+
 	public function testParseMatchStringInGivenValues()
 	{
 		$queryStringParser = new QueryStringParser();
@@ -122,6 +141,19 @@ class QueryStringParserTest extends KernelTestCase
 		);
 
 		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata', $returnVal );
+	}
+
+	public function testParseCriterionField()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'parseCriterion',
+			array( 'Field.birthday', '>2000-10-10' )
+		);
+
+		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field', $returnVal );
 	}
 
 	public function testParseCriterionContentTypeIdentifierFullName()
