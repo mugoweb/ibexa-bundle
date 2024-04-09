@@ -27,3 +27,11 @@ services:
   MugoWeb\IbexaBundle\Service\ContentManager:
     autowire: true
     autoconfigure: true
+
+  # Field filter
+  mugo_web.search.legacy.gateway.criterion_handler.common.field:
+    class: MugoWeb\IbexaBundle\Search\Legacy\Content\Common\Gateway\CriterionHandler\Field
+    parent: ibexa.search.legacy.gateway.criterion_handler.base
+    tags:
+      - { name: ibexa.search.legacy.gateway.criterion_handler.content }
+      - { name: ibexa.search.legacy.gateway.criterion_handler.location }

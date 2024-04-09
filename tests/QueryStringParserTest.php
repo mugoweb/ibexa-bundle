@@ -68,6 +68,7 @@ class QueryStringParserTest extends KernelTestCase
 			[
 				'operator' => '=',
 				'values' => [ '100' ],
+				'target' => '',
 			];
 
 		$this->assertEquals( $expected, $returnVal );
@@ -156,6 +157,19 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field', $returnVal );
 	}
 
+	public function testParseCriterionFullClassPath()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'parseCriterion',
+			array( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field.birthday', '>2000-10-10' )
+		);
+
+		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field', $returnVal );
+	}
+
 	public function testParseCriterionContentTypeIdentifierFullName()
 	{
 		$queryStringParser = new QueryStringParser();
@@ -211,6 +225,36 @@ class QueryStringParserTest extends KernelTestCase
 		$sort = QueryStringParser::parseSortClauses( 'Location\Priority:WRONG' );
 
 		$this->assertEquals( 'ascending', $sort[0]->direction );
+	}
+
+	public function testAddTargetToMatchDataField()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'addTargetToMatchData',
+			[ 'Some\Class\Here.718' ]
+		);
+
+		$expected = '718';
+
+		$this->assertEquals( $expected, $returnVal );
+	}
+
+	public function testAddTargetToMatchDataDatePublished()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'addTargetToMatchData',
+			[ 'DatePublished' ]
+		);
+
+		$expected = 'created';
+
+		$this->assertEquals( $expected, $returnVal );
 	}
 
 	private function callStaticMethod( $obj, $name, array $args )
