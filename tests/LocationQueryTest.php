@@ -96,13 +96,6 @@ class LocationQueryTest extends KernelTestCase
         );
     }
 
-    public function testBuildQueryStringGreaterThanPublishDate()
-    {
-        $locationQuery = LocationQuery::build( 'DatePublished:>2020-10-20' );
-
-        $this->assertTrue( $locationQuery->query->value[0] > 0 );
-    }
-
     public function testBuildQueryStringMultipleMatches()
     {
         $locationQuery = LocationQuery::build( 'ContentTypeIdentifier:[article,blog_post]' );

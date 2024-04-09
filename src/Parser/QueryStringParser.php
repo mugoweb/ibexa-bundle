@@ -89,8 +89,9 @@ class QueryStringParser
 	 * - Visibility
 	 *      Example for visible content: Visibility:visible
 	 *      Example for hidden content: Visibility:hidden
-	 * - Field.<identifier>
+	 * - Field.<identifier> (search only - not filter)
 	 *      Example: Field.name:"Top News"
+	 *      Example: Field.name:~<substring>
 	 * - DatePublished
 	 * - DateModified
 	 *      Example: DatePublished:>2020-10-20
@@ -276,7 +277,7 @@ class QueryStringParser
 			//TODO: only matching when outside of a quoted strings
 			if( strpos( $word, ':' ) )
 			{
-				$criterion = self::preParseCriterion( $word );
+				$criterion = self::parsePreOperatorAndCriterion( $word );
 				if( $criterion )
 				{
 					$conditions[] = $criterion;
@@ -307,11 +308,11 @@ class QueryStringParser
 		}
 	}
 
-	static protected function preParseCriterion( $word )
+	static protected function parsePreOperatorAndCriterion( $word )
 	{
-		preg_match( '/(?<operator>!|)(?<field>.*?):(?<value>.*)/', $word, $matches );
+		preg_match( '/(?<operator>!|)(?<criterionName>.*?):(?<value>.*)/', $word, $matches );
 
-		$criterion = self::parseCriterion( $matches[ 'field' ], $matches[ 'value' ] );
+		$criterion = self::parseCriterion( $matches[ 'criterionName' ], $matches[ 'value' ] );
 
 		if( $matches[ 'operator' ] == '!' )
 		{
@@ -327,7 +328,7 @@ class QueryStringParser
 	 * @return mixed|object|string|void|null
 	 * @throws \ReflectionException
 	 */
-	static protected function parseCriterion( string $className, $matchString )
+	static protected function parseCriterion( string $className, string $matchString )
 	{
 		// TODO: document this
 		if( $className == 'SUBQUERY' )
@@ -336,125 +337,154 @@ class QueryStringParser
 		}
 
 		$reflectionClass = self::classNameToCriterion( $className );
-
 		$matchData = self::parseMatchString( $matchString );
+		$matchData[ 'target' ] = self::addTargetToMatchData( $className );
 
-		// $fieldName references a content type field
-		if( $reflectionClass )
+		return $reflectionClass->newInstanceArgs( self::matchDataToCriterionParameters( $matchData, $reflectionClass ) );
+	}
+
+	static protected function matchDataToCriterionParameters( array $matchData, ReflectionClass $reflectionClass ) : array
+	{
+		switch( $reflectionClass->name )
 		{
-			switch( $reflectionClass->name )
-			{
-				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field':
-				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Field':
+			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field':
+			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Field':
 				{
-					$parts = explode( '.', $className );
-					$className = $parts[0];
-					$fieldIdentifier = $parts[1];
-
-					return $reflectionClass->newInstanceArgs(
+					return
 						[
-							$fieldIdentifier,
+							$matchData[ 'target' ],
 							$matchData[ 'operator' ],
-							$matchData[ 'values' ][ 0 ] // Cannot handle an array
-						]
-					);
+							$matchData[ 'values' ][ 0 ]
+						];
 				}
 				break;
 
-				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth':
-				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Location\Depth':
-					{
-						return $reflectionClass->newInstanceArgs( [ '=', $matchData[ 'values' ][ 0 ] ] );
-					}
-					break;
-
-				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Visibility':
-				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Visibility':
-					{
-						$parameter = strtoupper( $matchData[ 'values' ][ 0 ] ) === 'HIDDEN' ? 1 : 0;
-						return $reflectionClass->newInstanceArgs( [ $parameter ] );
-					}
-					break;
-
-				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata':
-				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\DateMetadata':
-					{
-						$targetMetadata = $className === 'DatePublished' ? 'created' : 'modified';
-
-						$parameters =
-							[
-								$targetMetadata,
-								$matchData[ 'operator' ],
-								strtotime( $matchData[ 'values' ][ 0 ] ),
-							];
-						return $reflectionClass->newInstanceArgs( $parameters );
-					}
-					break;
-
-				case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree':
-				case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Subtree':
-					{
-						$values = $matchData[ 'values' ];
-						array_walk($values, function( &$item, $key )
-						{
-							$item = rtrim( $item,'/' ) .'/';
-						});
-
-						return $reflectionClass->newInstanceArgs( [ $values ] );
-					}
-					break;
-
-				default:
+			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth':
+			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Location\Depth':
 				{
-					return $reflectionClass->newInstanceArgs( [ $matchData[ 'values' ] ] );
+					return [ '=', $matchData[ 'values' ][ 0 ] ];
 				}
+				break;
+
+			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Visibility':
+			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Visibility':
+				{
+					$parameter = strtoupper( $matchData[ 'values' ][ 0 ] ) === 'HIDDEN' ? 1 : 0;
+					return [ $parameter ];
+				}
+				break;
+
+			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata':
+			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\DateMetadata':
+				{
+					return
+						[
+							$matchData[ 'target' ],
+							$matchData[ 'operator' ],
+							strtotime( $matchData[ 'values' ][ 0 ] ),
+						];
+				}
+				break;
+
+			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree':
+			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Subtree':
+				{
+					$values = $matchData[ 'values' ];
+					array_walk($values, function( &$item, $key )
+					{
+						$item = rtrim( $item,'/' ) .'/';
+					});
+
+					return [ $values ];
+				}
+				break;
+
+			case 'MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\Criterion\Field':
+				{
+					return array_values( $matchData );
+				}
+				break;
+
+			default:
+			{
+				return [ $matchData[ 'values' ] ];
 			}
 		}
 	}
 
-	static protected function classNameToCriterion( string $className ) :? ReflectionClass
+	static protected function addTargetToMatchData( string $className ) : string
 	{
-		if( strpos( $className, '.' ) )
-		{
-			$className = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field';
-		}
-		else
-		{
-			switch( $className )
-			{
-				case 'DatePublished':
-				case 'DateModified':
-					{
-						$className = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata';
-					}
-					break;
+		$parts = explode( '.', $className );
 
-				default:
-				{
-					// Assuming that we have a shortcut to an Ibexa Criterion
-					if( count( explode( '\\', $className ) ) < 3 )
-					{
-						$className = 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $className;
-					}
-				}
-			}
+		if( count( $parts ) > 1 )
+		{
+			return $parts[1];
 		}
 
+		if( $className == 'DatePublished' )
+		{
+			return 'created';
+		}
+
+		if( $className == 'DateModified' )
+		{
+			return 'modified';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Gets the Reflection Class of a Criterion
+	 */
+	static protected function classNameToCriterion( string $className ) : ReflectionClass
+	{
 		if( class_exists( $className ) )
 		{
 			return new \ReflectionClass( $className );
 		}
-		else
+
+		// Class name with target info: "Field.title"
+		if( strpos( $className, '.' ) )
 		{
-			throw \Exception( 'No valid Criterion specified' );
+			$clasNameParts = explode( '.', $className );
+			return self::classNameToCriterion( $clasNameParts[0] );
 		}
+
+		// Some name mapping
+		switch( $className )
+		{
+			case 'DatePublished':
+			case 'DateModified':
+			{
+				return self::classNameToCriterion( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata' );
+			}
+		}
+
+		// Assuming that we have a shortcut to an Ibexa Criterion
+		if( count( explode( '\\', $className ) ) < 3 )
+		{
+			return self::classNameToCriterion( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $className );
+		}
+
+		throw new \Exception( 'No valid Criterion specified' );
 	}
 
+	/**
+	 * Supported operators:
+	 *  > larger
+	 *  > larger or equal
+	 *  < smaller
+	 *  < smaller or equal
+	 *  ~ contains
+	 *  [x,y,z] matching against a list of values
+	 */
 	static protected function parseMatchString( string $matchString ): array
 	{
 		// Simple matchString
 		$return =
 			[
+				'target' => '',
 				'operator' => '=',
 				'values' => [ $matchString ],
 			];
