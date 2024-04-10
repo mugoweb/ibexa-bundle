@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace MugoWeb\IbexaBundle\Search\Legacy\Content\Common\Gateway\CriterionHandler;
 
 use Doctrine\DBAL\Query\QueryBuilder;
-use Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion;
-use Ibexa\Core\Search\Legacy\Content\Common\Gateway\CriteriaConverter;
-use Ibexa\Core\Search\Legacy\Content\Common\Gateway\CriterionHandler;
+use eZ\Publish\API\Repository\Values\Content\Query\Criterion;
+use eZ\Publish\Core\Search\Legacy\Content\Common\Gateway\CriteriaConverter;
+use eZ\Publish\Core\Search\Legacy\Content\Common\Gateway\CriterionHandler;
 use MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\Criterion\Field as FieldCriterion;
 
 final class Field extends CriterionHandler
