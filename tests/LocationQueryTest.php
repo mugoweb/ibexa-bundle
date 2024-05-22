@@ -86,14 +86,11 @@ class LocationQueryTest extends KernelTestCase
         $this->assertEquals( $locationQuery1, $locationQuery2 );
     }
 
-    public function testBuildQueryStringWithQuotedString()
+    public function testBuildQueryStringGreaterThanPublishDate()
     {
-        $locationQuery = LocationQuery::build( 'Field.identifier:"my quoted string" OR Field.identifier2:\'my 2nd quoted string\'' );
+        $locationQuery = LocationQuery::build( 'DatePublished:>2020-10-20' );
 
-        $this->assertEquals(
-            'my quoted string',
-            $locationQuery->query->criteria[0]->value
-        );
+        $this->assertTrue( $locationQuery->query->value[0] > 0 );
     }
 
     public function testBuildQueryStringMultipleMatches()

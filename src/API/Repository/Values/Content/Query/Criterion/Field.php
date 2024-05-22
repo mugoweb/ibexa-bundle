@@ -24,6 +24,7 @@ final class Field extends Criterion
     public function getSpecifications(): array
     {
         return [
+			// not really supported
             new Specifications(
                 Operator::IN,
                 Specifications::FORMAT_ARRAY,
@@ -34,6 +35,26 @@ final class Field extends Criterion
                 Specifications::FORMAT_SINGLE,
                 Specifications::TYPE_INTEGER | Specifications::TYPE_STRING
             ),
+			new Specifications(
+				Operator::GT,
+				Specifications::FORMAT_SINGLE,
+				Specifications::TYPE_INTEGER | Specifications::TYPE_STRING
+			),
+			new Specifications(
+				Operator::GTE,
+				Specifications::FORMAT_SINGLE,
+				Specifications::TYPE_INTEGER | Specifications::TYPE_STRING
+			),
+			new Specifications(
+				Operator::LT,
+				Specifications::FORMAT_SINGLE,
+				Specifications::TYPE_INTEGER | Specifications::TYPE_STRING
+			),
+			new Specifications(
+				Operator::LTE,
+				Specifications::FORMAT_SINGLE,
+				Specifications::TYPE_INTEGER | Specifications::TYPE_STRING
+			),
         ];
     }
 }

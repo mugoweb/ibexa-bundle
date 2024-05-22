@@ -144,6 +144,19 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata', $returnVal );
 	}
 
+	public function testParseCriterionDatePublishedDynamicDate()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'parseCriterion',
+			array( 'DatePublished', 'now -10 days' )
+		);
+
+		$this->assertGreaterThan( $returnVal->value[0], strtotime( 'now -9 days' ) );
+	}
+
 	public function testParseCriterionField()
 	{
 		$queryStringParser = new QueryStringParser();
@@ -168,6 +181,26 @@ class QueryStringParserTest extends KernelTestCase
 		);
 
 		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field', $returnVal );
+	}
+
+	public function testBuildQueryStringWithQuotedString()
+	{
+		$locationQuery = QueryStringParser::parseCriterions( 'Field.identifier:"my quoted string" OR Field.identifier2:\'my 2nd quoted string\'' );
+
+		$this->assertEquals(
+			'my quoted string',
+			$locationQuery->criteria[0]->value
+		);
+	}
+
+	public function testBuildQueryStringWithQuotedStringAndOperator()
+	{
+		$query = QueryStringParser::parseCriterions( 'DatePublished:"<now - 30 days"' );
+
+		$this->assertEquals(
+			'<',
+			$query->operator
+		);
 	}
 
 	public function testParseCriterionContentTypeIdentifierFullName()
@@ -238,6 +271,21 @@ class QueryStringParserTest extends KernelTestCase
 		);
 
 		$expected = '718';
+
+		$this->assertEquals( $expected, $returnVal );
+	}
+
+	public function testAddTargetToMatchDataFieldTwoDots()
+	{
+		$queryStringParser = new QueryStringParser();
+
+		$returnVal = $this->callStaticMethod(
+			$queryStringParser,
+			'addTargetToMatchData',
+			[ 'Some\Class\Here.ContentType.Field' ]
+		);
+
+		$expected = 'ContentType.Field';
 
 		$this->assertEquals( $expected, $returnVal );
 	}

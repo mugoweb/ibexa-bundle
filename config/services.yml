@@ -32,6 +32,9 @@ services:
   mugo_web.search.legacy.gateway.criterion_handler.common.field:
     class: MugoWeb\IbexaBundle\Search\Legacy\Content\Common\Gateway\CriterionHandler\Field
     parent: ezpublish.search.legacy.gateway.criterion_handler.base
+    arguments:
+      $connection: "@ibexa.api.storage_engine.legacy.connection"
+      $contentTypeHandler: '@Ibexa\Contracts\Core\Persistence\Content\Type\Handler'
     tags:
       - { name: ibexa.search.legacy.gateway.criterion_handler.content }
       - { name: ibexa.search.legacy.gateway.criterion_handler.location }

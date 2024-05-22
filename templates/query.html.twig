@@ -3,13 +3,17 @@
 		<div>
 			<label>Query:</label>
 			<input style="width: 100%" name="query" value="{{ queryString }}" />
+			<label>Sort:</label>
+			<input style="width: 100%" name="sort" value="{{ sortString }}" />
+			<label>Limit:</label>
+			<input style="width: 100%" name="limit" value="{{ limit }}" />
 		</div>
 
 		<button name="submit" type="submit" value="1">Submit</button>
 	</form>
 
 	{% if result %}
-		<h2>Result</h2>
+		<h2>Result (max 100)</h2>
 		<div>
 			{{ dump( result ) }}
 		</div>
