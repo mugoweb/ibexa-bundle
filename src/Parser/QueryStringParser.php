@@ -96,6 +96,9 @@ class QueryStringParser
 	 * - DateModified
 	 *      Example: DatePublished:>2020-10-20
 	 *
+	 * See more criterions:
+	 * https://github.com/ibexa/core/tree/main/src/contracts/Repository/Values/Content/Query/Criterion
+	 *
 	 * @param string $queryString
 	 * @return eZQuery\CriterionInterface|FilteringCriterion|null
 	 * @throws \Exception
@@ -401,7 +404,12 @@ class QueryStringParser
 
 			case 'MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\Criterion\Field':
 				{
-					return array_values( $matchData );
+					return
+						[
+							$matchData[ 'target' ],
+							$matchData[ 'operator' ],
+							$matchData[ 'values' ]
+						];
 				}
 				break;
 
@@ -418,7 +426,8 @@ class QueryStringParser
 
 		if( count( $parts ) > 1 )
 		{
-			return $parts[1];
+			array_shift( $parts );
+			return implode( '.', $parts );
 		}
 
 		if( $className == 'DatePublished' )
@@ -481,6 +490,14 @@ class QueryStringParser
 	 */
 	static protected function parseMatchString( string $matchString ): array
 	{
+		// Unpackage quoted strings
+		preg_match( '/"(.*?)"/', $matchString, $match );
+
+		if( !empty( $match ) )
+		{
+			return self::parseMatchString( self::$quotedStrings[ $match[1] ] );
+		}
+
 		// Simple matchString
 		$return =
 			[
@@ -489,54 +506,44 @@ class QueryStringParser
 				'values' => [ $matchString ],
 			];
 
-		// Unpackage quoted strings
-		preg_match( '/"(.*?)"/', $matchString, $match );
+		// MatchString with an operator at the beginning
+		$operatorRegEx = '#\s*(>=|>|<|<=|~)\s*(".*?"|.*?)$#';
+		preg_match( $operatorRegEx, $matchString, $matches );
 
-		if( !empty( $match ) )
+		if( isset( $matches[1] ) && isset( $matches[2] ) )
 		{
-			$return[ 'values' ][0] = self::$quotedStrings[ $match[1] ];
+			$operatorMap =
+				[
+					'>=' => '>=',
+					'>'  => '>',
+					'<'  => '<',
+					'<=' => '<=',
+					'~'  => 'contains',
+				];
+
+			$return =
+				[
+					'operator' => $operatorMap[ $matches[1] ],
+					'values' => [ $matches[2] ],
+				];
 		}
-		else
+
+		// Matches [123,321] - Matching one of multiple values
+		preg_match( '/\[(.*?)\]/', $matchString, $matches );
+
+		if( isset( $matches[1] ) )
 		{
-			// MatchString with an operator at the beginning
-			$operatorRegEx = '#\s*(>=|>|<|<=|~)\s*(".*?"|.*?)$#';
-			preg_match( $operatorRegEx, $matchString, $matches );
-
-			if( isset( $matches[1] ) && isset( $matches[2] ) )
-			{
-				$operatorMap =
-					[
-						'>=' => '>=',
-						'>'  => '>',
-						'<'  => '<=',
-						'<=' => '<=',
-						'~'  => 'contains',
-					];
-
-				$return =
-					[
-						'operator' => $operatorMap[ $matches[1] ],
-						'values' => [ $matches[2] ],
-					];
-			}
-
-			// Matches [123,321] - Matching one of multiple values
-			preg_match( '/\[(.*?)\]/', $matchString, $matches );
-
-			if( isset( $matches[1] ) )
-			{
-				$return =
-					[
-						'operator' => 'IN',
-						'values' => explode( ',', $matches[1] ),
-					];
-			}
-
-
-			//TODO: implement [ 100 TO * ]
-			// $rangeRegEx = '#\[\s*(".*?"|.*?)\s+..\s+(".*?"|.*?)s*\]#';
-			// preg_match( $rangeRegEx, $matchString, $matches );
+			$return =
+				[
+					'operator' => 'IN',
+					'values' => explode( ',', $matches[1] ),
+				];
 		}
+
+
+		//TODO: implement [ 100 TO * ]
+		// $rangeRegEx = '#\[\s*(".*?"|.*?)\s+..\s+(".*?"|.*?)s*\]#';
+		// preg_match( $rangeRegEx, $matchString, $matches );
 
 		return $return;
 	}
