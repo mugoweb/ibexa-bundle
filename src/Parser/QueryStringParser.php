@@ -16,7 +16,7 @@ class QueryStringParser
 		string $objectType,
 		string $queryString,
 		string $sortString = '',
-		int $limit = 0,
+		int $limit = null,
 		int $offset = 0,
 		bool $performCount = false
 	)
@@ -36,7 +36,11 @@ class QueryStringParser
 					$query->sortClauses = self::parseSortClauses( $sortString );
 				}
 
-				if( $limit )
+				if( is_null( $limit ) )
+                {
+                    $query->limit = 10000000; // Ibexa default is 25
+                }
+                else
 				{
 					$query->limit = $limit;
 				}
@@ -338,7 +342,6 @@ class QueryStringParser
 		{
 			return self::$subQueries[ $matchString ];
 		}
-
 		$reflectionClass = self::classNameToCriterion( $className );
 		$matchData = self::parseMatchString( $matchString );
 		$matchData[ 'target' ] = self::addTargetToMatchData( $className );
@@ -413,6 +416,15 @@ class QueryStringParser
 				}
 				break;
 
+            //TODO: untested
+            case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\ContentName':
+            case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\ContentName':
+                return
+                    [
+                        $matchData[ 'values' ][0]
+                    ];
+            break;
+
 			default:
 			{
 				return [ $matchData[ 'values' ] ];
@@ -473,6 +485,13 @@ class QueryStringParser
 		// Assuming that we have a shortcut to an Ibexa Criterion
 		if( count( explode( '\\', $className ) ) < 3 )
 		{
+            switch( strtoupper( $className ) )
+            {
+                case 'SUBTREE':
+                    $className = 'Subtree';
+                break;
+            }
+
 			return self::classNameToCriterion( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $className );
 		}
 
