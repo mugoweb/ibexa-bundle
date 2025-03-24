@@ -9,6 +9,11 @@
 #   -p <port>
 #   -s <session cookie value>
 #       for example: 905c3869f7f86ba6aeeec44092017801
+#   -n <session cookie name>
+#       default value is: eZSESSID
+#
+# Example:
+#  bash ./vendor/mugoweb/ibexa-bundle/doc/debug_varnish/check_backend.sh -u /USA -p 8080 -d dev.csmonitor.com
 
 function urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
 
@@ -22,7 +27,7 @@ function parseQuery {
     echo ")"
 }
 
-while getopts u:r:s:d:p: flag
+while getopts u:r:s:d:p:n: flag
 do
     case "${flag}" in
         u) URL_OPTION=${OPTARG};;
@@ -30,6 +35,7 @@ do
         s) SESSION_ID_OPTION=${OPTARG};;
         d) DOMAIN_OPTION=${OPTARG};;
         p) PORT_OPTION=${OPTARG};;
+        n) SESSION_COOKIE_NAME_OPTION=${OPTARG}
     esac
 done
 
@@ -45,14 +51,20 @@ else
   RESOLVE_STRING=""
 fi
 
+SESSION_COOKIE_NAME="eZSESSID"
+if [ -n "$SESSION_COOKIE_NAME_OPTION" ]; then
+  SESSION_COOKIE_NAME="$SESSION_COOKIE_NAME_OPTION"
+fi
+
 if [ -n "$SESSION_ID_OPTION" ]; then
-  COOKIE_STRING=$"--cookie eZSESSID=$SESSION_ID_OPTION"
+  COOKIE_STRING=$"--cookie $SESSION_COOKIE_NAME=$SESSION_ID_OPTION"
 else
   COOKIE_STRING=""
 fi
 
+
 # Fetch user hash
-RESPONSE_HEADERS=$(curl -sIXGET $RESOLVE_STRING $COOKIE_STRING --header 'Surrogate-Capability: abc=ESI/1.0' --header 'accept: application/vnd.fos.user-context-hash' --header "x-fos-original-url: $URL_OPTION" $BASE_URL/_fos_user_context_hash | grep 'Set-Cookie:\|X-User-Context-Hash:')
+RESPONSE_HEADERS=$(curl -sIXGET $RESOLVE_STRING $COOKIE_STRING --header 'Surrogate-Capability: abc=ESI/1.0' --header 'accept: application/vnd.fos.user-context-hash' --header "x-fos-original-url: $URL_OPTION" $BASE_URL:$PORT_OPTION/_fos_user_context_hash | grep 'Set-Cookie:\|X-User-Context-Hash:')
 
 [[ $RESPONSE_HEADERS =~ X-User-Context-Hash:[[:space:]]([0-9a-z]+) ]]
 
@@ -61,10 +73,10 @@ printf "Handling $URL_OPTION\n"
 printf " User Hash: $USER_HASH\n"
 
 #printf " Main page\n"
-#curl -sIXGET $RESOLVE_STRING $COOKIE_STRING --header "Surrogate-Capability: abc=ESI/1.0" --header "x-user-context-hash: $USER_HASH" "$BASE_URL$URL_OPTION" | grep 'Cache-Control:'
+#curl -sIXGET $RESOLVE_STRING $COOKIE_STRING --header "Surrogate-Capability: abc=ESI/1.0" --header "x-user-context-hash: $USER_HASH" "$BASE_URL:$PORT_OPTION$URL_OPTION" | grep 'Cache-Control:'
 
 printf " ESI blocks:\n"
-RESPONSE=$(curl -s $RESOLVE_STRING $COOKIE_STRING --header "Surrogate-Capability: abc=ESI/1.0" --header "x-user-context-hash: $USER_HASH" "$BASE_URL$URL_OPTION" | grep -Po "<esi:include src=\K\".*?\"" )
+RESPONSE=$(curl -s $RESOLVE_STRING $COOKIE_STRING --header "Surrogate-Capability: abc=ESI/1.0" --header "x-user-context-hash: $USER_HASH" "$BASE_URL:$PORT_OPTION$URL_OPTION" | grep -Po "<esi:include src=\K\".*?\"" )
 
 ITER=0
 for ESI_LINE in $RESPONSE; do
@@ -90,8 +102,10 @@ for ESI_LINE in $RESPONSE; do
       echo "$i: ${querydict[$i]}"
     fi
   done
-  printf "ESI response:\n"
-  RESPONSE_HEADERS=$(curl -sIXGET $RESOLVE_STRING $COOKIE_STRING --header "Surrogate-Capability: abc=ESI/1.0" --header "x-user-context-hash: $USER_HASH" "$BASE_URL$ESI_URL")
+  echo "ESI Request URL: $ESI_URL"
+
+  printf "\nESI response:\n"
+  RESPONSE_HEADERS=$(curl -sIXGET $RESOLVE_STRING $COOKIE_STRING --header "Surrogate-Capability: abc=ESI/1.0" --header "x-user-context-hash: $USER_HASH" "$BASE_URL:$PORT_OPTION$ESI_URL")
 
   printf '%s\n' "${RESPONSE_HEADERS[@]}"
 

@@ -38,3 +38,7 @@ services:
     tags:
       - { name: ibexa.search.legacy.gateway.criterion_handler.content }
       - { name: ibexa.search.legacy.gateway.criterion_handler.location }
+
+  MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\QueryBuilder\Field:
+    tags:
+      - {name: ibexa.filter.criterion.query.builder}

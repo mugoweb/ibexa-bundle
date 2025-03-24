@@ -7,10 +7,12 @@ namespace MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\Criterion;
 use Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion;
 use Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Operator;
 use Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Operator\Specifications;
+use Ibexa\Contracts\Core\Repository\Values\Filter\FilteringCriterion;
+
 /**
  *
  */
-final class Field extends Criterion
+final class Field extends Criterion implements FilteringCriterion
 {
 	public function __construct(?string $target, ?string $operator, $value )
 	{

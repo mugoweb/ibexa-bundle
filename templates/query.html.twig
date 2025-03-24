@@ -1,21 +1,46 @@
-<div>
-	<form method="post">
-		<div>
-			<label>Query:</label>
-			<input style="width: 100%" name="query" value="{{ queryString }}" />
-			<label>Sort:</label>
-			<input style="width: 100%" name="sort" value="{{ sortString }}" />
-			<label>Limit:</label>
-			<input style="width: 100%" name="limit" value="{{ limit }}" />
-		</div>
+{% extends '@ibexadesign/ui/base.html.twig' %}
 
-		<button name="submit" type="submit" value="1">Submit</button>
-	</form>
+{% block content %}
+	<div>
+		<form method="post">
 
-	{% if result %}
-		<h2>Result (max 100)</h2>
-		<div>
-			{{ dump( result ) }}
-		</div>
-	{% endif %}
-</div>
+			<div class="btn-group" role="group" aria-label="solr vs db">
+				<input value="db" type="radio" class="btn-check" name="queryType" id="btnradio1" autocomplete="off" checked>
+				<label class="btn btn-outline-primary" for="btnradio1">Database</label>
+
+				<input value="solr" type="radio" class="btn-check" name="queryType" id="btnradio2" autocomplete="off">
+				<label class="btn btn-outline-primary" for="btnradio2">Solr</label>
+			</div>
+
+			<div class="row">
+				<div class="col">
+					<label>Query:</label>
+					<textarea style="width: 100%" name="query">{{ queryString }}</textarea>
+				</div>
+				<div class="col">
+					<select style="max-width: 200px;">
+						<option>ContentTypeIdentifier</option>
+						<option>MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\Criterion\Field</option>
+					</select>
+				</div>
+			</div>
+			<div>
+				<label>Sort:</label>
+				<input style="width: 100%" name="sort" value="{{ sortString }}" />
+				<label>Limit:</label>
+				<input style="width: 100%" name="limit" value="{{ limit }}" />
+			</div>
+
+			<div>
+				<button class="btn btn-primary" name="submit" type="submit" value="1">Submit</button>
+			</div>
+		</form>
+
+		{% if result %}
+			<h2>Result (max 100)</h2>
+			<div>
+				{{ dump( result ) }}
+			</div>
+		{% endif %}
+	</div>
+{% endblock %}

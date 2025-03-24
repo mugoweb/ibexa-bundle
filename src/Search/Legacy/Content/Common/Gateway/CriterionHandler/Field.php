@@ -57,6 +57,7 @@ final class Field extends CriterionHandler
 			'a0',
 			$queryBuilder->expr()->and(
 				"a0.contentobject_id = c.id",
+                "a0.version = c.current_version",
 				"a0.contentclassattribute_id = {$fieldDefinition->id}",
 				$queryBuilder->expr()->$compareFunction(
 					"a0.{$dbColumn}",
