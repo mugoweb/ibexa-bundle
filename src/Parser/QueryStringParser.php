@@ -143,7 +143,8 @@ class QueryStringParser
 	 * - Location\Priority
 	 * - Field.<content type identifier>.<field identifier>
 	 * - CustomField.<field identifier> (only for index based search)
-	 * - $location->sortField . ':' . $location->sortOrder (for example "9:1")
+	 * - $parentLocation->sortField . ':' . $parentLocation->sortOrder
+     *            (for example "9:1" - no SortClause class name needed)
 	*/
 	static public function parseSortClauses( string $sortString )
 	{
@@ -349,6 +350,9 @@ class QueryStringParser
 		return $reflectionClass->newInstanceArgs( self::matchDataToCriterionParameters( $matchData, $reflectionClass ) );
 	}
 
+    /**
+     * TODO: consider to read the 'getSpecification' from the Criterion object and base the logic on the results
+     */
 	static protected function matchDataToCriterionParameters( array $matchData, ReflectionClass $reflectionClass ) : array
 	{
 		switch( $reflectionClass->name )
@@ -416,9 +420,10 @@ class QueryStringParser
 				}
 				break;
 
-            //TODO: untested
             case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\ContentName':
             case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\ContentName':
+            case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\FullText':
+            case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\FullText':
                 return
                     [
                         $matchData[ 'values' ][0]
@@ -492,10 +497,10 @@ class QueryStringParser
                 break;
             }
 
-			return self::classNameToCriterion( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\\' . $className );
+			return self::classNameToCriterion( 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\\' . $className );
 		}
 
-		throw new \Exception( 'No valid Criterion specified' );
+		throw new \Exception( 'No valid Criterion specified: ' . $className );
 	}
 
 	/**

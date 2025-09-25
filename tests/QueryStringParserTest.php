@@ -305,6 +305,29 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertEquals( $expected, $returnVal );
 	}
 
+    public function testMatchDataToCriterionParametersFullText()
+    {
+        $queryStringParser = new QueryStringParser();
+
+        $fullTextReflection = new \ReflectionClass( 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\FullText' );
+
+        $matchData =
+            [
+                'values' => [ 'searchTerm' ]
+            ];
+
+        $returnVal = $this->callStaticMethod(
+            $queryStringParser,
+            'matchDataToCriterionParameters',
+            [
+                $matchData,
+                $fullTextReflection
+            ]
+        );
+
+        $this->assertEquals( [ 'searchTerm' ], $returnVal );
+    }
+
 	private function callStaticMethod( $obj, $name, array $args )
 	{
 		$class = new \ReflectionClass( $obj );

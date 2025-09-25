@@ -97,6 +97,7 @@ final class Field extends CriterionHandler
 			case 'ezfloat': // guessing here
 			case 'ezinteger':
 			case 'eztime':
+            case 'ezboolean':
 			{
 				return 'sort_key_int';
 			}
