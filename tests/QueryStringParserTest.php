@@ -7,6 +7,7 @@ use MugoWeb\IbexaBundle\Repository\LocationQuery;
 use MugoWeb\IbexaBundle\Repository\Query;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use PHPUnit\Exception;
+use Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Operator;
 
 class QueryStringParserTest extends KernelTestCase
 {
@@ -66,8 +67,8 @@ class QueryStringParserTest extends KernelTestCase
 
 		$expected =
 			[
-				'operator' => '=',
-				'values' => [ '100' ],
+				'operator' => Operator::EQ,
+				'values' => '100',
 				'target' => '',
 			];
 
@@ -86,8 +87,9 @@ class QueryStringParserTest extends KernelTestCase
 
 		$expected =
 			[
-				'operator' => '>',
-				'values' => [ '100' ],
+				'operator' => Operator::GT,
+				'values' => '100',
+                'target' => '',
 			];
 
 		$this->assertEquals( $expected, $returnVal );
@@ -105,8 +107,9 @@ class QueryStringParserTest extends KernelTestCase
 
 		$expected =
 			[
-				'operator' => 'contains',
-				'values' => [ 'substring' ],
+				'operator' => Operator::CONTAINS,
+				'values' => 'substring',
+                'target' => '',
 			];
 
 		$this->assertEquals( $expected, $returnVal );
@@ -124,8 +127,9 @@ class QueryStringParserTest extends KernelTestCase
 
 		$expected =
 			[
-				'operator' => 'IN',
+				'operator' => Operator::IN,
 				'values' => [ '123', '321' ],
+                'target' => '',
 			];
 
 		$this->assertEquals( $expected, $returnVal );
@@ -170,6 +174,19 @@ class QueryStringParserTest extends KernelTestCase
 		$this->assertInstanceOf( 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field', $returnVal );
 	}
 
+    public function testParseCriterionObjectStateIdentifier()
+    {
+        $queryStringParser = new QueryStringParser();
+
+        $returnVal = $this->callStaticMethod(
+            $queryStringParser,
+            'parseCriterion',
+            array( 'ObjectStateIdentifier', 'not_locked' )
+        );
+
+        $this->assertEquals( 'not_locked', $returnVal->value );
+    }
+
 	public function testParseCriterionFullClassPath()
 	{
 		$queryStringParser = new QueryStringParser();
@@ -198,12 +215,18 @@ class QueryStringParserTest extends KernelTestCase
 		$query = QueryStringParser::parseCriterions( 'DatePublished:"<now - 30 days"' );
 
 		$this->assertEquals(
-			'<',
+			Operator::LT,
 			$query->operator
 		);
 	}
 
-	public function testParseCriterionContentTypeIdentifierFullName()
+    public function testBuildQueryStringWithCriterionConstructorZeroArgument()
+    {
+        $criterion = QueryStringParser::parseCriterions( 'MatchAll:1' );
+        $this->assertInstanceOf( 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\MatchAll', $criterion );
+    }
+
+    public function testParseCriterionContentTypeIdentifierFullName()
 	{
 		$queryStringParser = new QueryStringParser();
 
@@ -313,7 +336,7 @@ class QueryStringParserTest extends KernelTestCase
 
         $matchData =
             [
-                'values' => [ 'searchTerm' ]
+                'values' => 'searchTerm'
             ];
 
         $returnVal = $this->callStaticMethod(

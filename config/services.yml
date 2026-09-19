@@ -12,13 +12,24 @@ services:
     tags:
       - { name: console.command }
 
+  MugoWeb\IbexaBundle\Command\DebugRedisValues:
+    arguments:
+      $cachePool: '@ibexa.cache_pool'
+      $objectStateService: '@Ibexa\Contracts\Core\Repository\ObjectStateService'
+    tags:
+      - { name: console.command }
+
+  # Controllers
   MugoWeb\IbexaBundle\Controller\QueryController:
     autowire: true
     autoconfigure: true
 
   MugoWeb\IbexaBundle\Controller\ToolsController:
+    arguments:
+      - '@ibexa.api.repository'
     autowire: true
     autoconfigure: true
+#    tags: [ 'controller.service_arguments' ]
 
   MugoWeb\IbexaBundle\Controller\InspectController:
     autowire: true
@@ -28,7 +39,11 @@ services:
     autowire: true
     autoconfigure: true
 
-  # Field filter
+  MugoWeb\IbexaBundle\Event\MenuListener:
+    tags:
+      - { name: kernel.event_subscriber}
+
+  # Fields with Filters, Visitors etc
   mugo_web.search.legacy.gateway.criterion_handler.common.field:
     class: MugoWeb\IbexaBundle\Search\Legacy\Content\Common\Gateway\CriterionHandler\Field
     arguments:
@@ -40,5 +55,22 @@ services:
       - { name: ibexa.search.legacy.gateway.criterion_handler.location }
 
   MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\QueryBuilder\Field:
+    tags:
+      - {name: ibexa.filter.criterion.query.builder}
+
+  mugo_web.search.legacy.gateway.criterion_handler.common.keyword:
+    class: MugoWeb\IbexaBundle\Search\Legacy\Content\Common\Gateway\CriterionHandler\Keyword
+    arguments:
+      $connection: "@ibexa.api.storage_engine.legacy.connection"
+      $contentTypeHandler: '@Ibexa\Contracts\Core\Persistence\Content\Type\Handler'
+    parent: ibexa.search.legacy.gateway.criterion_handler.base
+    tags:
+      - { name: ibexa.search.legacy.gateway.criterion_handler.content }
+      - { name: ibexa.search.legacy.gateway.criterion_handler.location }
+
+  MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\QueryBuilder\Keyword:
+    arguments:
+      $connection: "@ibexa.api.storage_engine.legacy.connection"
+      $contentTypeHandler: '@Ibexa\Contracts\Core\Persistence\Content\Type\Handler'
     tags:
       - {name: ibexa.filter.criterion.query.builder}

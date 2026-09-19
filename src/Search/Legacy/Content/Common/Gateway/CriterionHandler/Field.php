@@ -36,7 +36,7 @@ final class Field extends CriterionHandler
     {
 		$fieldDefinition = $this->getFieldDefinition( $criterion->target );
 
-		$valueMatch = $criterion->value;
+		$valueMatch = $this->getValueMatch( $criterion->value, $fieldDefinition );
 		$operator = $criterion->operator;
 		$dbColumn = $this->getDbColumn( $fieldDefinition );
 
@@ -106,4 +106,17 @@ final class Field extends CriterionHandler
 				return 'sort_key_string';
 		}
 	}
+
+    private function getValueMatch( string $value, FieldDefinition $fieldDefinition )
+    {
+        switch( $fieldDefinition->fieldType )
+        {
+            case 'ezdate':
+            case 'ezdatetime':
+                return strtotime($value);
+
+            default:
+                return $value;
+        }
+    }
 }

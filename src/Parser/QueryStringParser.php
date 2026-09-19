@@ -6,6 +6,7 @@ use ReflectionClass;
 use eZ\Publish\API\Repository\Values\Content\Query as eZQuery;
 use eZ\Publish\SPI\Repository\Values\Filter\FilteringCriterion;
 use eZ\Publish\API\Repository\Values\Filter\Filter;
+use Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Operator;
 
 class QueryStringParser
 {
@@ -61,7 +62,11 @@ class QueryStringParser
 
 				if( $sortString )
 				{
-					$filter->withSortClause( self::parseSortClauses( $sortString ) );
+                    $sortClauses = self::parseSortClauses( $sortString );
+                    if( count( $sortClauses ) )
+                    {
+                        $filter->withSortClause( $sortClauses[0] );
+                    }
 				}
 
 				if( $limit )
@@ -357,82 +362,87 @@ class QueryStringParser
 	{
 		switch( $reflectionClass->name )
 		{
-			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Field':
-			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Field':
-				{
-					return
-						[
-							$matchData[ 'target' ],
-							$matchData[ 'operator' ],
-							$matchData[ 'values' ][ 0 ]
-						];
-				}
-				break;
-
-			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Location\Depth':
-			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Location\Depth':
-				{
-					return [ '=', $matchData[ 'values' ][ 0 ] ];
-				}
-				break;
-
 			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Visibility':
 			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Visibility':
-				{
-					$parameter = strtoupper( $matchData[ 'values' ][ 0 ] ) === 'HIDDEN' ? 1 : 0;
-					return [ $parameter ];
-				}
-				break;
+                $parameter = strtoupper( $matchData[ 'values' ] ) === 'HIDDEN' ? 1 : 0;
+                return [ $parameter ];
+            break;
 
 			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\DateMetadata':
 			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\DateMetadata':
-				{
-					return
-						[
-							$matchData[ 'target' ],
-							$matchData[ 'operator' ],
-							strtotime( $matchData[ 'values' ][ 0 ] ),
-						];
-				}
-				break;
-
-			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree':
-			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Subtree':
-				{
-					$values = $matchData[ 'values' ];
-					array_walk($values, function( &$item, $key )
-					{
-						$item = rtrim( $item,'/' ) .'/';
-					});
-
-					return [ $values ];
-				}
-				break;
-
-			case 'MugoWeb\IbexaBundle\API\Repository\Values\Content\Query\Criterion\Field':
-				{
-					return
-						[
-							$matchData[ 'target' ],
-							$matchData[ 'operator' ],
-							$matchData[ 'values' ]
-						];
-				}
-				break;
-
-            case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\ContentName':
-            case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\ContentName':
-            case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\FullText':
-            case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\FullText':
                 return
                     [
-                        $matchData[ 'values' ][0]
+                        $matchData[ 'target' ],
+                        $matchData[ 'operator' ],
+                        strtotime( $matchData[ 'values' ] ),
                     ];
             break;
 
-			default:
+			case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\Subtree':
+			case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Subtree':
+                $values = (array)$matchData[ 'values' ];
+                array_walk($values, function( &$item, $key )
+                {
+                    $item = rtrim( $item,'/' ) .'/';
+                });
+
+                return [ $values ]; // matchData with single array
+            break;
+
+            // Only to parameters and order switched
+            case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\ObjectStateIdentifier':
+            // Has an additional parameter in constructor ( $properties )
+            case 'eZ\Publish\API\Repository\Values\Content\Query\Criterion\FullText':
+            case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\FullText':
+            // Addtional parameter in constructor ( $target )
+            case 'Netgen\TagsBundle\API\Repository\Values\Content\Query\Criterion\TagId':
+                return
+                    [
+                        $matchData[ 'values' ]
+                    ];
+            break;
+
+            case 'Ibexa\Contracts\Core\Repository\Values\Content\Query\Criterion\Location\IsMainLocation':
+                if(
+                    strtoupper( $matchData[ 'values' ][ 0 ] ) === 'FALSE' ||
+                    strtoupper( $matchData[ 'values' ][ 0 ] ) === 'NO' ||
+                    !$matchData[ 'values' ]
+                )
+                {
+                    return [ 1 ]; // Confusing logic but that's how IsMainLocation works
+                }
+                else
+                {
+                    return [ 0 ];
+                }
+            break;
+
+            default:
 			{
-				return [ $matchData[ 'values' ] ];
+                // Criterion classes have 3 types of constructors
+                // 1. Criterion( $target, $operator, $value )
+                // 2. Criterion( $operator, $value )
+                // 3. Criterion( $value )
+                // plus some exceptions
+                $constructor = $reflectionClass->getConstructor();
+                $parameterCount = $constructor?->getNumberOfParameters();
+
+                if( $parameterCount >= 3 )
+                {
+                    return [ $matchData[ 'target' ], $matchData[ 'operator' ], $matchData[ 'values' ] ];
+                }
+                elseif( $parameterCount == 2 )
+                {
+                    return [ $matchData[ 'operator' ], $matchData[ 'values' ] ];
+                }
+                elseif( $parameterCount == 1 )
+                {
+                    return [ $matchData[ 'values' ] ];
+                }
+                else
+                {
+                    return [];
+                }
 			}
 		}
 	}
@@ -511,65 +521,71 @@ class QueryStringParser
 	 *  < smaller or equal
 	 *  ~ contains
 	 *  [x,y,z] matching against a list of values
+     *
+     * TODO: consider to rename the array key 'values' to 'value'
 	 */
 	static protected function parseMatchString( string $matchString ): array
 	{
-		// Unpackage quoted strings
-		preg_match( '/"(.*?)"/', $matchString, $match );
+        // Resolve quoted-string placeholders in place, preserving surrounding operators
+        $matchString = preg_replace_callback(
+            '/"(.*?)"/',
+            function( $match )
+            {
+                if( !array_key_exists( $match[1], self::$quotedStrings ) )
+                {
+                    throw new \Exception( 'Unresolved quoted string: ' . $match[1] );
+                }
+                return self::$quotedStrings[ $match[1] ];
+            },
+            $matchString
+        );
 
-		if( !empty( $match ) )
-		{
-			return self::parseMatchString( self::$quotedStrings[ $match[1] ] );
-		}
+        // Explicit Operator - operator at the beginning
+        $operatorRegEx = '#^\s*(>=|<=|>|<|~)\s*(.*)$#';
+        preg_match( $operatorRegEx, $matchString, $matches );
 
-		// Simple matchString
-		$return =
+        if( isset( $matches[1] ) && isset( $matches[2] ) )
+        {
+            $operatorMap =
+                [
+                    '=' => Operator::EQ,
+                    '>=' => Operator::GTE,
+                    '>'  => Operator::GT,
+                    '<'  => Operator::LT,
+                    '<=' => Operator::LTE,
+                    '~'  => Operator::CONTAINS,
+                ];
+
+            return
+                [
+                    'target'   => '',
+                    'operator' => $operatorMap[ $matches[1] ],
+                    'values' => trim( $matches[2] ),
+                ];
+        }
+
+        // Matches [123, 321] - Matching one of multiple values
+        if( preg_match( '/^\s*\[(.*)\]\s*$/', $matchString, $matches ) )
+        {
+            return
+                [
+                    'target'   => '',
+                    'operator' => Operator::IN,
+                    'values' => array_map( 'trim', explode( ',', $matches[1] ) ),
+                ];
+        }
+
+        //TODO: implement [ 100 TO * ]
+        // $rangeRegEx = '#\[\s*(".*?"|.*?)\s+..\s+(".*?"|.*?)s*\]#';
+        // preg_match( $rangeRegEx, $matchString, $matches );
+
+        // Assuming single value should match
+		return
 			[
 				'target' => '',
-				'operator' => '=',
-				'values' => [ $matchString ],
+				'operator' => Operator::EQ,
+				'values' => $matchString,
 			];
-
-		// MatchString with an operator at the beginning
-		$operatorRegEx = '#\s*(>=|>|<|<=|~)\s*(".*?"|.*?)$#';
-		preg_match( $operatorRegEx, $matchString, $matches );
-
-		if( isset( $matches[1] ) && isset( $matches[2] ) )
-		{
-			$operatorMap =
-				[
-					'>=' => '>=',
-					'>'  => '>',
-					'<'  => '<',
-					'<=' => '<=',
-					'~'  => 'contains',
-				];
-
-			$return =
-				[
-					'operator' => $operatorMap[ $matches[1] ],
-					'values' => [ $matches[2] ],
-				];
-		}
-
-		// Matches [123,321] - Matching one of multiple values
-		preg_match( '/\[(.*?)\]/', $matchString, $matches );
-
-		if( isset( $matches[1] ) )
-		{
-			$return =
-				[
-					'operator' => 'IN',
-					'values' => explode( ',', $matches[1] ),
-				];
-		}
-
-
-		//TODO: implement [ 100 TO * ]
-		// $rangeRegEx = '#\[\s*(".*?"|.*?)\s+..\s+(".*?"|.*?)s*\]#';
-		// preg_match( $rangeRegEx, $matchString, $matches );
-
-		return $return;
 	}
 
 	static protected function linkConditions( $conditions, $logicalOperator )

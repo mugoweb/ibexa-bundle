@@ -1,13 +1,16 @@
+{% extends '@ibexadesign/ui/base.html.twig' %}
+
+{% block content %}
 <div>
 	<h1>Regenerate URL Aliases</h1>
 
 	<form method="POST">
 		<div>
-			<label>Location ID:</label>
-			<input name="locationId" value="" />
+			<label for="locationIdInput">Location ID:</label>
+			<input id="locationIdInput" name="locationId" value="" class="form-control" />
 		</div>
 
-		<button name="submit" type="submit" value="1">Submit</button>
+		<button class="btn btn-primary" name="submit" type="submit" value="1">Submit</button>
 	</form>
 
 	{% if message %}
@@ -17,3 +20,4 @@
 		</div>
 	{% endif %}
 </div>
+{% endblock %}

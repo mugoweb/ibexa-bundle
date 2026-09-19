@@ -4,12 +4,42 @@
 	<div>
 		<form method="post">
 
-			<div class="btn-group" role="group" aria-label="solr vs db">
-				<input value="db" type="radio" class="btn-check" name="queryType" id="btnradio1" autocomplete="off" checked>
-				<label class="btn btn-outline-primary" for="btnradio1">Database</label>
+			<div class="btn-group" role="group" aria-label="Quering for content in various methods">
 
-				<input value="solr" type="radio" class="btn-check" name="queryType" id="btnradio2" autocomplete="off">
-				<label class="btn btn-outline-primary" for="btnradio2">Solr</label>
+                {#  DbQuery #}
+				<input
+                        value="DbQuery" type="radio" class="btn-check" name="queryType" id="btnradio1" autocomplete="off"
+                        {% if queryType == 'DbQuery' %}checked{% endif %}
+                >
+				<label class="btn btn-outline-primary" for="btnradio1">DB Query</label>
+
+                {# DbLocationQuery #}
+                <input
+                        value="DbLocationQuery" type="radio" class="btn-check" name="queryType" id="btnradio2" autocomplete="off"
+                        {% if queryType == 'DbLocationQuery' %}checked{% endif %}
+                >
+                <label class="btn btn-outline-primary" for="btnradio2">DB Location Query</label>
+
+                {# SolrQuery #}
+                <input
+                        value="SolrQuery" type="radio" class="btn-check" name="queryType" id="btnradio3" autocomplete="off"
+                        {% if queryType == 'SolrQuery' %}checked{% endif %}
+                >
+				<label class="btn btn-outline-primary" for="btnradio3">Solr Query</label>
+
+                {# SolrLocationQuery #}
+                <input
+                        value="SolrLocationQuery" type="radio" class="btn-check" name="queryType" id="btnradio4" autocomplete="off"
+                        {% if queryType == 'SolrLocationQuery' %}checked{% endif %}
+                >
+                <label class="btn btn-outline-primary" for="btnradio4">Solr Location Query</label>
+
+                {# FilterQuery #}
+                <input
+                        value="FilterQuery" type="radio" class="btn-check" name="queryType" id="btnradio5" autocomplete="off"
+                        {% if queryType == 'FilterQuery' %}checked{% endif %}
+                >
+                <label class="btn btn-outline-primary" for="btnradio5">Filter Query</label>
 			</div>
 
 			<div class="row">
@@ -37,10 +67,39 @@
 		</form>
 
 		{% if result %}
-			<h2>Result (max 100)</h2>
-			<div>
-				{{ dump( result ) }}
-			</div>
+			<h2>{{ result.totalCount }} result(s), showing maximal 100</h2>
+			<table>
+            <tbody>
+            {% if result.locations is defined %}
+                {% for location in result.locations %}
+                    <tr>
+                        <td>
+                            <a href="{{ ibexa_url( location ) }}">
+                                {{ location.contentInfo.name }}
+                            </a>
+                        </td>
+                        <td>
+                            {{ location.contentInfo.contentType.name }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% elseif result.searchHits is defined %}
+                {% for hit in result.searchHits %}
+                    {% set location = hit.valueObject %}
+                    <tr>
+                        <td>
+                            <a href="{{ ibexa_url( location ) }}">
+                                {{ location.contentInfo.name }}
+                            </a>
+                        </td>
+                        <td>
+                            {{ location.contentInfo.contentType.name }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+            </tbody>
+			</table>
 		{% endif %}
 	</div>
 {% endblock %}

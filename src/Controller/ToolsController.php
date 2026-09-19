@@ -6,24 +6,33 @@ use eZ\Publish\API\Repository\Repository;
 use eZ\Publish\Core\Base\Exceptions\UnauthorizedException;
 use eZ\Publish\Core\Base\Exceptions\NotFoundException;
 use eZ\Publish\Core\Base\Exceptions\BadStateException;
+use eZ\Publish\Core\MVC\Symfony\Security\Authorization\Attribute;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
 class ToolsController extends AbstractController
 {
+    public function __construct(
+        readonly private Repository $repository,
+    )
+    {}
+
 	public function regenerateUrlAlias(
         Request $request,
-        Repository $repository
     )
 	{
+        $attribute = new Attribute( 'mugo_ibexa_bundle', 'regenerate_url_alias' );
+        $this->denyAccessUnlessGranted( $attribute );
+
         $msg = '';
         $locationId = $request->request->get( 'locationId', 0 );
+        $repository = $this->repository;
 
         if( $locationId )
         {
             try {
                 $msg = $repository->sudo(
-                    function (Repository $repository) use ( $locationId )
+                    function( Repository $repository ) use ( $locationId )
                     {
                         try
                         {

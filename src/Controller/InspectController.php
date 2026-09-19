@@ -3,6 +3,7 @@
 namespace MugoWeb\IbexaBundle\Controller;
 
 use Doctrine\DBAL\Connection;
+use eZ\Publish\Core\MVC\Symfony\Security\Authorization\Attribute;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use DOMDocument;
@@ -45,7 +46,10 @@ class InspectController extends AbstractController
 
 	public function inspect( $type, $id1, $id2 ) : Response
 	{
-		$dom = new DOMDocument( '1.0', 'UTF-8' );
+        $attribute = new Attribute( 'mugo_ibexa_bundle', 'inspect' );
+        $this->denyAccessUnlessGranted( $attribute );
+
+        $dom = new DOMDocument( '1.0', 'UTF-8' );
 
 		$objectId = $this->getObjectId( $dom, $type, $id1, $id2 );
 

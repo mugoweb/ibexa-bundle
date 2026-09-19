@@ -1,2 +1,4 @@
 mugo_ibexa_bundle:
-    admin: ~
+  query: ~
+  regenerate_url_alias: ~
+  inspect: ~

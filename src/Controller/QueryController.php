@@ -3,9 +3,9 @@
 namespace MugoWeb\IbexaBundle\Controller;
 
 //use eZ\Publish\API\Repository\LocationService;
+use eZ\Publish\Core\MVC\Symfony\Security\Authorization\Attribute;
 use Ibexa\Contracts\Core\Repository\LocationService;
 use Ibexa\Contracts\Core\Repository\SearchService;
-
 use MugoWeb\IbexaBundle\Parser\QueryStringParser;
 use MugoWeb\IbexaBundle\Repository\LocationQuery;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,13 +13,20 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
 class QueryController extends AbstractController
 {
-	public function query( Request $request, LocationService $locationService )
+	public function query(
+        Request $request,
+        LocationService $locationService,
+        SearchService $searchService,
+    )
 	{
-		$result = null;
+        $attribute = new Attribute( 'mugo_ibexa_bundle', 'query' );
+        $this->denyAccessUnlessGranted( $attribute );
+
+        $result = null;
 		$queryString = $request->request->get( 'query', '' );
 		$sortString = $request->request->get( 'sort', '' );
-		$limit = $request->request->get( 'limit', 100 );
-		$queryType = $request->request->get( 'queryType', 'db' );
+		$limit = $request->request->get( 'limit', 25 );
+		$queryType = $request->request->get( 'queryType', 'DbQuery' );
         //TODO: add location vs content query option
 
         $query = null;
@@ -29,7 +36,7 @@ class QueryController extends AbstractController
 
             switch( $queryType )
             {
-                case 'db':
+                case 'FilterQuery':
                     $query = QueryStringParser::getQueryObject(
                         'Filter',
                         $queryString,
@@ -38,10 +45,32 @@ class QueryController extends AbstractController
                     );
 
                     $result = $locationService->find( $query );
-                    //$result = $ngServices->getFilterService()->filterContent( $query );
-                    break;
+                break;
 
-                case 'solr':
+                case 'DbQuery':
+                    $query = QueryStringParser::getQueryObject(
+                        'Query',
+                        $queryString,
+                        $sortString,
+                        $limit
+                    );
+
+                    $fetchResult = $searchService->findContentInfo( $query );
+
+                    $result =
+                        [
+                            'totalCount' => $fetchResult->totalCount,
+                            'locations' => [],
+                        ];
+
+                    foreach( $fetchResult->searchHits as $hit )
+                    {
+                        $contentInfo = $hit->valueObject;
+                        $result[ 'locations' ][] = $locationService->loadLocation( $contentInfo->mainLocationId );
+                    }
+                break;
+
+                case 'DbLocationQuery':
                     $query = QueryStringParser::getQueryObject(
                         'LocationQuery',
                         $queryString,
@@ -49,8 +78,30 @@ class QueryController extends AbstractController
                         $limit
                     );
 
-                    $result = $ngServices->getFindService()->findLocations( $query );
-                    break;
+                    $result = $searchService->findContentInfo( $query );
+                break;
+
+                case 'SolrQuery':
+                    $query = QueryStringParser::getQueryObject(
+                        'Query',
+                        $queryString,
+                        $sortString,
+                        $limit
+                    );
+
+                    $result = $searchService->findLocations( $query );
+                break;
+
+                case 'SolrLocationQuery':
+                    $query = QueryStringParser::getQueryObject(
+                        'LocationQuery',
+                        $queryString,
+                        $sortString,
+                        $limit
+                    );
+
+                    $result = $searchService->findLocations( $query );
+                break;
 
                 default:
                     dd( $queryType );
@@ -65,6 +116,7 @@ class QueryController extends AbstractController
 				'limit' => $limit,
 				'result' => $result,
                 'query' => $query,
+                'queryType' => $queryType,
 			]
 		);
 	}

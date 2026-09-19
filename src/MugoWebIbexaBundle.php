@@ -13,7 +13,7 @@ class MugoWebIbexaBundle extends Bundle
         parent::build($container);
 
         /** @var \Ibexa\Bundle\Core\DependencyInjection\IbexaCoreExtension $ibexaCoreExtension */
-        $ibexaCoreExtension = $container->getExtension('ibexa');
+        $ibexaCoreExtension = $container->getExtension('ibexa' );
         $ibexaCoreExtension->addPolicyProvider( new PolicyProvider() );
     }
 

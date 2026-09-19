@@ -47,12 +47,42 @@ final class Field implements CriterionQueryBuilder
             $queryBuilder->createNamedParameter(['ezstring'], Connection::PARAM_STR_ARRAY)
         );
 
+        $dateCondition = $qbInner->expr()->in(
+            'attribute_type.data_type_string',
+            $queryBuilder->createNamedParameter([ 'ezdate', 'ezdatetime' ], Connection::PARAM_STR_ARRAY)
+        );
 
-        switch ($operator) {
+        switch( $operator )
+        {
             case Criterion\Operator::EQ:
                 $fieldValueClause = "CASE
-                    WHEN ${booleanCondition} THEN " . (string)$qbInner->expr()->eq('attribute_value.data_int', $queryBuilder->createNamedParameter($value ? 1 : 0, ParameterType::INTEGER)) . "
-                    WHEN ${stringCondition} THEN " . (string)$qbInner->expr()->eq('attribute_value.data_text', $queryBuilder->createNamedParameter($value, ParameterType::STRING)) . "
+                    WHEN {$booleanCondition} THEN " . (string)$qbInner->expr()->eq('attribute_value.data_int',  $queryBuilder->createNamedParameter( $value ? 1 : 0, ParameterType::INTEGER)) . "
+                    WHEN {$stringCondition}  THEN " . (string)$qbInner->expr()->eq('attribute_value.data_text', $queryBuilder->createNamedParameter( $value, ParameterType::STRING)) . "
+                    WHEN {$dateCondition}   THEN " . (string)$qbInner->expr()->eq('attribute_value.data_int',  $queryBuilder->createNamedParameter( strtotime( $value ), ParameterType::INTEGER )) . "
+                    ELSE false
+                END";
+            break;
+            case Criterion\Operator::GT:
+                $fieldValueClause = "CASE
+                    WHEN {$dateCondition} THEN " . (string)$qbInner->expr()->gt('attribute_value.data_int', $queryBuilder->createNamedParameter( strtotime( $value ), ParameterType::INTEGER )) . "
+                    ELSE false
+                END";
+            break;
+            case Criterion\Operator::LT:
+                $fieldValueClause = "CASE
+                    WHEN {$dateCondition} THEN " . (string)$qbInner->expr()->lt('attribute_value.data_int', $queryBuilder->createNamedParameter( strtotime( $value ), ParameterType::INTEGER )) . "
+                    ELSE false
+                END";
+            break;
+            case Criterion\Operator::GTE:
+                $fieldValueClause = "CASE
+                    WHEN {$dateCondition} THEN " . (string)$qbInner->expr()->gte('attribute_value.data_int', $queryBuilder->createNamedParameter( strtotime( $value ), ParameterType::INTEGER )) . "
+                    ELSE false
+                END";
+                break;
+            case Criterion\Operator::LTE:
+                $fieldValueClause = "CASE
+                    WHEN {$dateCondition} THEN " . (string)$qbInner->expr()->lte('attribute_value.data_int', $queryBuilder->createNamedParameter( strtotime( $value ), ParameterType::INTEGER )) . "
                     ELSE false
                 END";
                 break;
@@ -60,6 +90,57 @@ final class Field implements CriterionQueryBuilder
                 throw new RuntimeException(
                     "Unknown operator '{$operator}' for Field Criterion handler."
                 );
+        }
+
+        // Handle field identifier
+        $fieldIdentifierParts = explode( '.', $fieldIdentifier );
+        if( count( $fieldIdentifierParts ) === 2 )
+        {
+            // Building subquery to lookup atttribute id
+            $qbAttributeIdLookup = $queryBuilder->getConnection()->createQueryBuilder();
+
+            $qbAttributeIdLookup
+                ->select('cca.id')
+                ->from('ezcontentclass_attribute', 'cca')
+                ->innerJoin(
+                    'cca',
+                    'ezcontentclass',
+                    'cc',
+                    'cca.contentclass_id = cc.id'
+                )
+                ->where(
+                    $qbAttributeIdLookup->expr()->eq(
+                        'cc.identifier',
+                        $queryBuilder->createNamedParameter( $fieldIdentifierParts[0]
+                    ) )
+                )
+                ->andWhere(
+                    $qbAttributeIdLookup->expr()->eq(
+                        'cca.identifier',
+                        $queryBuilder->createNamedParameter( $fieldIdentifierParts[1]
+                    ) )
+                )
+            ;
+
+            // Adding subquery
+            $fieldIdentifierCause = $qbInner->expr()->eq(
+                'attribute_type.id',
+                "( {$qbAttributeIdLookup->getSQL()} )"
+            );
+        }
+        else // Simple field identifier
+        {
+            $fieldIdentifierCause =
+                $qbInner->expr()->and(
+                    // only works if there is content type criterion
+                    'attribute_type.contentclass_id = content_type.id',
+                    // matching field identifier
+                    $qbInner->expr()->eq(
+                        'attribute_type.identifier',
+                        $queryBuilder->createNamedParameter( $fieldIdentifier, ParameterType::STRING )
+                    )
+                )
+            ;
         }
 
         $qbInner
@@ -76,17 +157,14 @@ final class Field implements CriterionQueryBuilder
             )
             ->where(
                 $qbInner->expr()->and(
-                    'attribute_type.contentclass_id = content_type.id',
-                    $qbInner->expr()->eq(
-                        'attribute_type.identifier',
-                        $queryBuilder->createNamedParameter($fieldIdentifier, ParameterType::STRING)
-                    ),
+                    $fieldIdentifierCause,
                     $fieldValueClause,
                     'attribute_value.contentobject_id = content.id',
                     'attribute_value.version = content.current_version'
                 )
             );
 
+        dd( $condition );
         $condition = 'exists(' . $qbInner->getSQL() . ')';
 
         return $condition;
